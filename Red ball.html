@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Red Ball Prototip</title>
+    <style>
+        canvas { border: 2px solid black; background: #f0f0f0; }
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let ball = {
+        x: 50,
+        y: 300,
+        radius: 20,
+        color: "red",
+        dy: 0,
+        jumpForce: -12,
+        gravity: 0.6,
+        speed: 5,
+        grounded: false
+    };
+
+    let keys = {};
+
+    window.addEventListener("keydown", e => keys[e.code] = true);
+    window.addEventListener("keyup", e => keys[e.code] = false);
+
+    function update() {
+        // Sağ-sol hərəkəti
+        if (keys["ArrowRight"]) ball.x += ball.speed;
+        if (keys["ArrowLeft"]) ball.x -= ball.speed;
+
+        // Tullanmaq
+        if (keys["Space"] && ball.grounded) {
+            ball.dy = ball.jumpForce;
+            ball.grounded = false;
+        }
+
+        // Fizika hesablama
+        ball.dy += ball.gravity;
+        ball.y += ball.dy;
+
+        // Yerlə toqquşma (Sadə səviyyə)
+        if (ball.y + ball.radius > 380) {
+            ball.y = 380 - ball.radius;
+            ball.dy = 0;
+            ball.grounded = true;
+        }
+
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Platforma (Yer)
+        ctx.fillStyle = "#8B4513";
+        ctx.fillRect(0, 380, canvas.width, 20);
+
+        // Top (Red Ball)
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = ball.color;
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    update();
+</script>
+</body>
+</html>
