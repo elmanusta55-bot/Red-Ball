@@ -1,75 +1,248 @@
 <!DOCTYPE html>
-<html>
+<html lang="az">
 <head>
-    <title>Red Ball Prototip</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Red Ball Pro Prototip</title>
     <style>
-        canvas { border: 2px solid black; background: #f0f0f0; }
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB; /* Göy üzü rəngi */
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(#87CEEB, #E0F7FA);
+        }
+
+        /* Planşet Kontrolları */
+        .ui-overlay {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .move-btns {
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .action-btns {
+            pointer-events: auto;
+        }
+
+        .btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            color: white;
+            touch-action: none;
+        }
+
+        .btn:active {
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0.9);
+        }
+
+        .jump-btn {
+            width: 90px;
+            height: 90px;
+            background: rgba(255, 0, 0, 0.4);
+        }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-overlay">
+        <div class="move-btns">
+            <div class="btn" id="leftBtn">◀</div>
+            <div class="btn" id="rightBtn">▶</div>
+        </div>
+        <div class="action-btns">
+            <div class="btn jump-btn" id="jumpBtn">▲</div>
+        </div>
+    </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    let ball = {
-        x: 50,
-        y: 300,
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Oyun obyektləri
+    let player = {
+        x: 100,
+        y: 100,
         radius: 20,
-        color: "red",
-        dy: 0,
-        jumpForce: -12,
-        gravity: 0.6,
+        vx: 0,
+        vy: 0,
         speed: 5,
-        grounded: false
+        jumpPower: -15,
+        gravity: 0.8,
+        grounded: false,
+        color: "#FF3D00"
     };
 
-    let keys = {};
+    let platforms = [
+        { x: 0, y: canvas.height - 50, w: 2000, h: 50 }, // Yer
+        { x: 300, y: canvas.height - 150, w: 150, h: 20 },
+        { x: 550, y: canvas.height - 250, w: 150, h: 20 },
+        { x: 800, y: canvas.height - 180, w: 200, h: 20 }
+    ];
 
-    window.addEventListener("keydown", e => keys[e.code] = true);
-    window.addEventListener("keyup", e => keys[e.code] = false);
+    let hazards = [
+        { x: 450, y: canvas.height - 50, w: 40, h: 40 } // Tikan
+    ];
+
+    let cameraX = 0;
+    let inputs = { left: false, right: false, jump: false };
+
+    // Kontrolları sazla (Planşet)
+    const setupInput = (id, key) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); inputs[key] = true; });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); inputs[key] = false; });
+    };
+
+    setupInput('leftBtn', 'left');
+    setupInput('rightBtn', 'right');
+    setupInput('jumpBtn', 'jump');
+
+    // Klaviatura dəstəyi (PC üçün də olsun)
+    window.addEventListener('keydown', e => {
+        if(e.code === 'ArrowLeft') inputs.left = true;
+        if(e.code === 'ArrowRight') inputs.right = true;
+        if(e.code === 'Space' || e.code === 'ArrowUp') inputs.jump = true;
+    });
+    window.addEventListener('keyup', e => {
+        if(e.code === 'ArrowLeft') inputs.left = false;
+        if(e.code === 'ArrowRight') inputs.right = false;
+        if(e.code === 'Space' || e.code === 'ArrowUp') inputs.jump = false;
+    });
 
     function update() {
-        // Sağ-sol hərəkəti
-        if (keys["ArrowRight"]) ball.x += ball.speed;
-        if (keys["ArrowLeft"]) ball.x -= ball.speed;
+        // Hərəkət
+        if (inputs.left) player.vx = -player.speed;
+        else if (inputs.right) player.vx = player.speed;
+        else player.vx *= 0.8; // Sürtünmə
+
+        // Fizika
+        player.vy += player.gravity;
+        player.x += player.vx;
+        player.y += player.vy;
+
+        player.grounded = false;
+
+        // Platforma toqquşması
+        platforms.forEach(p => {
+            if (player.x + player.radius > p.x && player.x - player.radius < p.x + p.w &&
+                player.y + player.radius > p.y && player.y - player.radius < p.y + p.h) {
+                
+                if (player.vy > 0 && player.y < p.y + p.h) { // Üstdən dəyirsə
+                    player.y = p.y - player.radius;
+                    player.vy = 0;
+                    player.grounded = true;
+                }
+            }
+        });
+
+        // Tikan toqquşması (Ölüm)
+        hazards.forEach(h => {
+            if (player.x + player.radius > h.x && player.x - player.radius < h.x + h.w &&
+                player.y + player.radius > h.y) {
+                resetGame();
+            }
+        });
 
         // Tullanmaq
-        if (keys["Space"] && ball.grounded) {
-            ball.dy = ball.jumpForce;
-            ball.grounded = false;
+        if (inputs.jump && player.grounded) {
+            player.vy = player.jumpPower;
+            player.grounded = false;
         }
 
-        // Fizika hesablama
-        ball.dy += ball.gravity;
-        ball.y += ball.dy;
-
-        // Yerlə toqquşma (Sadə səviyyə)
-        if (ball.y + ball.radius > 380) {
-            ball.y = 380 - ball.radius;
-            ball.dy = 0;
-            ball.grounded = true;
-        }
+        // Kamera izləməsi
+        cameraX = player.x - canvas.width / 2;
 
         draw();
         requestAnimationFrame(update);
     }
 
+    function resetGame() {
+        player.x = 100;
+        player.y = 100;
+        player.vx = 0;
+        player.vy = 0;
+    }
+
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Platforma (Yer)
-        ctx.fillStyle = "#8B4513";
-        ctx.fillRect(0, 380, canvas.width, 20);
+        ctx.save();
+        ctx.translate(-cameraX, 0); // Kamera effekti
 
-        // Top (Red Ball)
+        // Platformaları çək
+        ctx.fillStyle = "#4CAF50";
+        platforms.forEach(p => {
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+            // Ot effekti
+            ctx.fillStyle = "#388E3C";
+            ctx.fillRect(p.x, p.y, p.w, 5);
+            ctx.fillStyle = "#4CAF50";
+        });
+
+        // Tikanları çək
+        ctx.fillStyle = "#37474F";
+        hazards.forEach(h => {
+            ctx.beginPath();
+            ctx.moveTo(h.x, h.y);
+            ctx.lineTo(h.x + h.w / 2, h.y - h.h);
+            ctx.lineTo(h.x + h.w, h.y);
+            ctx.fill();
+        });
+
+        // Red Ball-u çək
         ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-        ctx.fillStyle = ball.color;
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+        ctx.fillStyle = player.color;
         ctx.fill();
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.stroke();
         ctx.closePath();
+
+        // Gözlər
+        ctx.fillStyle = "white";
+        ctx.beginPath();
+        ctx.arc(player.x + 8, player.y - 5, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "black";
+        ctx.beginPath();
+        ctx.arc(player.x + 10, player.y - 5, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
     }
 
     update();
