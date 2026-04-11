@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Red Ball Pro Prototip</title>
+    <title>Red Ball Pro</title>
     <style>
         body {
             margin: 0;
@@ -70,7 +70,41 @@
             transform: scale(0.95);
         }
 
-        /* Planşet kontrolları */
+        .top-actions {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 35;
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .icon-btn {
+            border: none;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            font-size: 24px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .power-indicator {
+            position: fixed;
+            top: 62px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 35;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 999px;
+            padding: 7px 14px;
+            font-weight: bold;
+            text-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
         .ui-overlay {
             position: fixed;
             bottom: 20px;
@@ -220,6 +254,43 @@
             color: #fff;
             cursor: pointer;
         }
+
+        .secondary-btn {
+            background: #546e7a;
+        }
+
+        .skin-wrap {
+            display: flex;
+            gap: 10px;
+            margin: 8px 0;
+        }
+
+        .skin-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            cursor: pointer;
+            opacity: 0.78;
+        }
+
+        .skin-btn.selected {
+            transform: scale(1.1);
+            opacity: 1;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+        }
+
+        .leaderboard {
+            margin: 0;
+            padding-left: 20px;
+            text-align: left;
+            max-width: 280px;
+        }
+
+        .leaderboard li {
+            margin: 4px 0;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
@@ -339,7 +410,9 @@
         gravity: 0.8,
         grounded: false,
         prevGrounded: false,
-        color: "#FF3D00",
+        onPlatform: null,
+        baseColor: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
+        color: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
         squashX: 1,
         squashY: 1,
         currentPlatformType: "normal"
@@ -356,9 +429,13 @@
     let powerUps = [];
     let exitDoor = null;
 
+    let particles = [];
+    let floatingTexts = [];
+
     let cameraX = 0;
     let score = 0;
     let highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
+    let leaderboard = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
     let lives = 3;
     let state = GAME_STATE.MAIN_MENU;
     let selectedSkin = localStorage.getItem(SKIN_KEY) || "#FF3D00";
@@ -633,6 +710,11 @@
                     { x: 1940, y: groundY - 345, r: 14, type: "speed", collected: false },
                     { x: 3400, y: groundY - 365, r: 14, type: "magnet", collected: false }
                 ],
+                powerUps: [
+                    { type: "magnet", x: 1080, y: groundY - 350, r: 12, collected: false },
+                    { type: "star", x: 2170, y: groundY - 395, r: 12, collected: false },
+                    { type: "speed", x: 3140, y: groundY - 285, r: 12, collected: false }
+                ],
                 enemies: [
                     { x: 950, y: groundY - 175, r: 18, vx: 2.4, minX: 890, maxX: 1030, alive: true },
                     { x: 1550, y: groundY - 205, r: 18, vx: 2.1, minX: 1490, maxX: 1640, alive: true },
@@ -837,6 +919,7 @@
         player.vy = 0;
         player.grounded = false;
         player.prevGrounded = false;
+        player.onPlatform = null;
         player.squashX = 1;
         player.squashY = 1;
         player.currentPlatformType = "normal";
@@ -921,6 +1004,8 @@
             return;
         }
 
+        playHitSound();
+        triggerDamageEffect();
         lives -= 1;
         screenShakeTime = DAMAGE_SHAKE_MS;
         damageFlash = DAMAGE_FLASH_ALPHA;
@@ -944,6 +1029,7 @@
         player.vy = 0;
         player.grounded = false;
         player.prevGrounded = false;
+        player.onPlatform = null;
         cameraX = Math.max(0, player.x - canvas.width / 2);
     }
 
@@ -1063,6 +1149,7 @@
         if (player.grounded && !player.prevGrounded && Math.abs(prevVy) > 2) {
             player.squashX = 1.22;
             player.squashY = 0.82;
+            addParticles(player.x, player.y + player.radius - 2, 8, "rgba(240,240,240,0.9)", 0.5, 2, 15, 28);
         } else if (!player.grounded && player.vy < -2) {
             player.squashX = 0.9;
             player.squashY = 1.14;
@@ -1070,6 +1157,13 @@
         player.squashX += (1 - player.squashX) * 0.24;
         player.squashY += (1 - player.squashY) * 0.24;
         player.prevGrounded = player.grounded;
+    }
+
+    function updatePowerTimers() {
+        powerState.star = Math.max(0, powerState.star - 1);
+        powerState.speed = Math.max(0, powerState.speed - 1);
+        powerState.magnet = Math.max(0, powerState.magnet - 1);
+        refreshPowerColorAndUi();
     }
 
     function updateCoins() {
@@ -1136,6 +1230,14 @@
                 break;
             }
         }
+    }
+
+    function destroyEnemy(enemy) {
+        enemy.alive = false;
+        player.vy = player.jumpPower * 0.62;
+        addScore(25, enemy.x, enemy.y - 10);
+        addParticles(enemy.x, enemy.y, 14, "rgba(255,140,0,0.9)", 1.2, 3.5, 18, 36);
+        playEnemyDestroySound();
     }
 
     function updateEnemies() {
@@ -1275,7 +1377,6 @@
         ctx.fill();
     }
 
-    // Paralaks dağlar
     function drawMountain(x, width, height) {
         const baseY = canvas.height - 50;
         ctx.beginPath();
@@ -1286,11 +1387,17 @@
         ctx.fill();
     }
 
+    function currentTheme() {
+        if (!level) return LEVEL_THEMES[0];
+        const i = Math.min(LEVEL_THEMES.length - 1, currentLevelIndex);
+        return LEVEL_THEMES[i];
+    }
+
     function drawParallaxBackground() {
         const cloudParallax = 0.25;
         level.clouds.forEach((cloud) => {
             const x = cloud.x - cameraX * cloudParallax;
-            drawCloud(x, cloud.y, cloud.r);
+            drawCloud(x, cloud.y, cloud.r, theme.cloud);
         });
 
         const mountainParallax = 0.5;
@@ -1519,6 +1626,7 @@
         const el = document.getElementById(id);
         const start = (e) => {
             e.preventDefault();
+            ensureAudio();
             inputs[key] = true;
             initAudio();
             if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
@@ -1531,6 +1639,10 @@
         el.addEventListener("touchstart", start, { passive: false });
         el.addEventListener("touchend", end, { passive: false });
         el.addEventListener("touchcancel", end, { passive: false });
+
+        el.addEventListener("mousedown", start);
+        el.addEventListener("mouseup", end);
+        el.addEventListener("mouseleave", end);
     };
 
     setupInput("leftBtn", "left");
