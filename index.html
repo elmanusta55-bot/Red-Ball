@@ -19,6 +19,7 @@
             background: linear-gradient(#87CEEB, #E0F7FA);
         }
 
+        /* Yuxarı HUD (xal, rekord, can, səviyyə, power-up) */
         .hud {
             position: fixed;
             top: 12px;
@@ -37,7 +38,36 @@
 
         .hud-right {
             text-align: right;
-            line-height: 1.4;
+            line-height: 1.35;
+        }
+
+        .hud.hidden {
+            display: none;
+        }
+
+        /* Sağ yuxarı utility düymələri */
+        .top-controls {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 45;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(0, 0, 0, 0.35);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
         }
 
         .top-actions {
@@ -121,36 +151,100 @@
             background: rgba(255, 0, 0, 0.4);
         }
 
-        .overlay-screen {
+        /* Menyu və ara ekranlar */
+        .menu-screen,
+        .message-screen {
             position: fixed;
             inset: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.48);
+            background: rgba(0, 0, 0, 0.5);
             color: #fff;
             z-index: 40;
             text-align: center;
-            padding: 20px;
+            padding: 14px;
+            box-sizing: border-box;
         }
 
-        .overlay-screen.hidden {
+        .message-screen.hidden,
+        .menu-screen.hidden {
             display: none;
         }
 
-        .overlay-title {
-            font-size: 52px;
-            margin: 0;
+        .menu-card {
+            width: min(540px, 92vw);
+            background: rgba(15, 25, 35, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 16px;
+            padding: 18px;
+            max-height: 86vh;
+            overflow-y: auto;
+        }
+
+        .message-title {
+            font-size: 46px;
+            margin: 0 0 10px;
             text-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
         }
 
-        .overlay-subtitle {
-            margin: 0 0 6px;
+        .message-subtitle {
+            margin: 0 0 16px;
             font-size: 22px;
         }
 
+        .menu-title {
+            margin: 0 0 8px;
+            font-size: 42px;
+        }
+
+        .menu-sub {
+            margin: 0 0 12px;
+            font-size: 18px;
+            opacity: 0.95;
+        }
+
+        .section-title {
+            margin: 14px 0 8px;
+            font-size: 18px;
+            color: #90caf9;
+        }
+
+        .leaderboard {
+            list-style: decimal;
+            text-align: left;
+            margin: 0 auto;
+            width: min(280px, 85%);
+            padding-left: 24px;
+            line-height: 1.6;
+            font-size: 18px;
+        }
+
+        .skin-list {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .skin-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            cursor: pointer;
+            opacity: 0.78;
+        }
+
+        .skin-btn.selected {
+            transform: scale(1.12);
+            opacity: 1;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
+        }
+
+        .primary-btn,
         .restart-btn {
             font-size: 22px;
             padding: 12px 24px;
@@ -203,41 +297,47 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <div class="hud" id="hud">
-        <div id="scoreText">Xal: 0 | Rekord: 0</div>
+    <div class="hud hidden" id="hud">
+        <div>
+            <div id="scoreText">Xal: 0 | Rekord: 0</div>
+            <div id="powerupText">Power-up: yoxdur</div>
+        </div>
         <div class="hud-right">
             <div id="livesText">Can: ❤️❤️❤️</div>
             <div id="levelText">Səviyyə 1</div>
         </div>
     </div>
 
-    <div class="top-actions">
-        <button class="icon-btn" id="pauseBtn" title="Pause">⏸</button>
-        <button class="icon-btn" id="soundBtn" title="Səs">🔊</button>
+    <div class="top-controls">
+        <button class="icon-btn" id="pauseBtn" aria-label="Pause">⏸</button>
+        <button class="icon-btn" id="muteBtn" aria-label="Mute">🔊</button>
     </div>
 
-    <div class="power-indicator" id="powerIndicator">Power-up</div>
+    <div class="menu-screen" id="mainMenu">
+        <div class="menu-card">
+            <h1 class="menu-title">🔴 Red Ball Pro</h1>
+            <p class="menu-sub">Sikkə topla, düşmənləri keç, qapıya çat!</p>
+            <p class="menu-sub" id="menuHighScore">Rekord: 0</p>
 
-    <div class="overlay-screen" id="menuScreen">
-        <h1 class="overlay-title">Red Ball Pro</h1>
-        <p class="overlay-subtitle" id="menuBest">Rekord: 0</p>
-        <p class="overlay-subtitle">Top skin seçimi:</p>
-        <div class="skin-wrap" id="skinWrap">
-            <button class="skin-btn" data-skin="red" style="background:#ff3d00"></button>
-            <button class="skin-btn" data-skin="blue" style="background:#1e88e5"></button>
-            <button class="skin-btn" data-skin="green" style="background:#43a047"></button>
-            <button class="skin-btn" data-skin="yellow" style="background:#fdd835"></button>
+            <h3 class="section-title">Top Skin Seçimi</h3>
+            <div class="skin-list" id="skinList">
+                <button class="skin-btn" data-color="#FF3D00" style="background:#FF3D00" aria-label="Qırmızı skin"></button>
+                <button class="skin-btn" data-color="#2979FF" style="background:#2979FF" aria-label="Mavi skin"></button>
+                <button class="skin-btn" data-color="#2E7D32" style="background:#2E7D32" aria-label="Yaşıl skin"></button>
+                <button class="skin-btn" data-color="#FBC02D" style="background:#FBC02D" aria-label="Sarı skin"></button>
+            </div>
+
+            <h3 class="section-title">Top 5 Leaderboard</h3>
+            <ol class="leaderboard" id="leaderboardList"></ol>
+
+            <button class="primary-btn" id="playBtn">Oyna</button>
         </div>
-        <p class="overlay-subtitle">Liderboard (Top 5)</p>
-        <ol class="leaderboard" id="leaderboardList"></ol>
-        <button class="restart-btn" id="playBtn">Oyna</button>
     </div>
 
-    <div class="overlay-screen hidden" id="messageScreen">
-        <h1 class="overlay-title" id="messageTitle">Game Over</h1>
-        <p class="overlay-subtitle" id="messageSubtitle">Yenidən cəhd et!</p>
-        <button class="restart-btn" id="messagePrimaryBtn">Yenidən Başla</button>
-        <button class="restart-btn secondary-btn" id="messageSecondaryBtn">Baş Menyu</button>
+    <div class="message-screen hidden" id="messageScreen">
+        <h1 class="message-title" id="messageTitle">Dayandırıldı</h1>
+        <p class="message-subtitle" id="messageSubtitle">Davam et</p>
+        <button class="restart-btn" id="messageBtn">Davam et</button>
     </div>
 
     <div class="ui-overlay">
@@ -254,58 +354,47 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
+    const hud = document.getElementById("hud");
     const scoreText = document.getElementById("scoreText");
     const livesText = document.getElementById("livesText");
     const levelText = document.getElementById("levelText");
+    const powerupText = document.getElementById("powerupText");
 
-    const pauseBtn = document.getElementById("pauseBtn");
-    const soundBtn = document.getElementById("soundBtn");
-    const powerIndicator = document.getElementById("powerIndicator");
-
-    const menuScreen = document.getElementById("menuScreen");
-    const menuBest = document.getElementById("menuBest");
-    const playBtn = document.getElementById("playBtn");
+    const mainMenu = document.getElementById("mainMenu");
+    const menuHighScore = document.getElementById("menuHighScore");
     const leaderboardList = document.getElementById("leaderboardList");
-    const skinWrap = document.getElementById("skinWrap");
+    const skinList = document.getElementById("skinList");
+    const playBtn = document.getElementById("playBtn");
 
     const messageScreen = document.getElementById("messageScreen");
     const messageTitle = document.getElementById("messageTitle");
     const messageSubtitle = document.getElementById("messageSubtitle");
-    const messagePrimaryBtn = document.getElementById("messagePrimaryBtn");
-    const messageSecondaryBtn = document.getElementById("messageSecondaryBtn");
+    const messageBtn = document.getElementById("messageBtn");
+
+    const pauseBtn = document.getElementById("pauseBtn");
+    const muteBtn = document.getElementById("muteBtn");
 
     const HIGH_SCORE_KEY = "red_ball_high_score";
-    const LEADERBOARD_KEY = "red_ball_leaderboard";
-    const SKIN_KEY = "red_ball_skin";
-    const SOUND_KEY = "red_ball_sound_enabled";
-
-    const SKINS = {
-        red: "#FF3D00",
-        blue: "#1E88E5",
-        green: "#43A047",
-        yellow: "#FDD835"
-    };
-
-    const LEVEL_THEMES = [
-        { skyTop: "#87CEEB", skyBottom: "#E0F7FA", cloud: "rgba(255,255,255,0.85)", mountain: "rgba(96,125,139,0.45)" },
-        { skyTop: "#f4a261", skyBottom: "#f6d365", cloud: "rgba(255,240,220,0.78)", mountain: "rgba(109,76,65,0.5)" },
-        { skyTop: "#0d1b2a", skyBottom: "#1b263b", cloud: "rgba(180,205,255,0.5)", mountain: "rgba(17,39,64,0.85)" }
-    ];
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        rebuildLevelAfterResize();
-    }
-    window.addEventListener("resize", resize);
+    const LEADERBOARD_KEY = "red_ball_leaderboard_top5";
+    const SKIN_KEY = "red_ball_selected_skin";
+    const POWER_UP_DURATIONS = { star: 5000, speed: 4000, magnet: 5000 };
+    const CRUMBLE_DELAY_MS = 1000;
+    const DAMAGE_SHAKE_MS = 340;
+    const DAMAGE_FLASH_ALPHA = 0.42;
+    const MIN_DELTA_MS = 8;
+    const MAX_DELTA_MS = 40;
+    const BOUNCY_PLATFORM_BOOST = 1.35;
+    const MAGNET_PULL_STRENGTH = 0.08;
+    const PLATFORM_CULLING_DISTANCE = 240;
+    const TWO_PI = Math.PI * 2;
 
     // Oyun vəziyyətləri
     const GAME_STATE = {
-        MENU: "menu",
+        MAIN_MENU: "main_menu",
         PLAYING: "playing",
         PAUSED: "paused",
-        LEVEL_COMPLETE: "level_complete",
         GAME_OVER: "game_over",
+        LEVEL_COMPLETE: "level_complete",
         VICTORY: "victory"
     };
 
@@ -325,7 +414,8 @@
         baseColor: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
         color: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
         squashX: 1,
-        squashY: 1
+        squashY: 1,
+        currentPlatformType: "normal"
     };
 
     let levels = [];
@@ -347,222 +437,219 @@
     let highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
     let leaderboard = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
     let lives = 3;
-    let state = GAME_STATE.MENU;
+    let state = GAME_STATE.MAIN_MENU;
+    let selectedSkin = localStorage.getItem(SKIN_KEY) || "#FF3D00";
 
-    let shakeTimer = 0;
-    let shakeAmount = 0;
-    let redFlashTimer = 0;
+    let activePowerUp = null;
+    let lastFrameTime = performance.now();
+    let jumpConsumed = false;
+    let screenShakeTime = 0;
+    let damageFlash = 0;
+
+    const particles = [];
+    const floatingTexts = [];
 
     const inputs = { left: false, right: false, jump: false };
 
-    const powerState = {
-        star: 0,
-        speed: 0,
-        magnet: 0
-    };
+    // Web Audio API üçün minimal sintezator
+    let audioCtx = null;
+    let masterGain = null;
+    let musicGain = null;
+    let sfxGain = null;
+    let musicOscillators = [];
+    let musicIntervalId = null;
+    let isMuted = false;
 
-    const soundState = {
-        enabled: localStorage.getItem(SOUND_KEY) !== "0",
-        ready: false,
-        ctx: null,
-        masterGain: null,
-        bgGain: null,
-        bgOsc: null,
-        bgLfo: null,
-        bgLfoGain: null
-    };
-
-    function ensureAudio() {
-        if (!soundState.enabled || soundState.ready) return;
-
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return;
-
-        soundState.ctx = new AudioContextClass();
-        soundState.masterGain = soundState.ctx.createGain();
-        soundState.masterGain.gain.value = 0.22;
-        soundState.masterGain.connect(soundState.ctx.destination);
-
-        soundState.bgGain = soundState.ctx.createGain();
-        soundState.bgGain.gain.value = 0.08;
-        soundState.bgGain.connect(soundState.masterGain);
-
-        soundState.bgOsc = soundState.ctx.createOscillator();
-        soundState.bgOsc.type = "sine";
-        soundState.bgOsc.frequency.value = 160;
-
-        soundState.bgLfo = soundState.ctx.createOscillator();
-        soundState.bgLfo.type = "sine";
-        soundState.bgLfo.frequency.value = 0.22;
-        soundState.bgLfoGain = soundState.ctx.createGain();
-        soundState.bgLfoGain.gain.value = 22;
-
-        soundState.bgLfo.connect(soundState.bgLfoGain);
-        soundState.bgLfoGain.connect(soundState.bgOsc.frequency);
-        soundState.bgOsc.connect(soundState.bgGain);
-
-        soundState.bgOsc.start();
-        soundState.bgLfo.start();
-        soundState.ready = true;
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        rebuildLevelAfterResize();
     }
+    window.addEventListener("resize", resize);
 
-    function syncSoundUi() {
-        soundBtn.textContent = soundState.enabled ? "🔊" : "🔇";
-    }
-
-    function setSoundEnabled(enabled) {
-        soundState.enabled = enabled;
-        localStorage.setItem(SOUND_KEY, enabled ? "1" : "0");
-        syncSoundUi();
-
-        if (enabled) {
-            ensureAudio();
-            if (soundState.ctx && soundState.ctx.state === "suspended") {
-                soundState.ctx.resume();
-            }
-        } else if (soundState.ctx && soundState.ctx.state === "running") {
-            soundState.ctx.suspend();
+    function getLeaderboard() {
+        const raw = localStorage.getItem(LEADERBOARD_KEY);
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
         }
     }
 
-    function playTone(type, frequency, duration = 0.12, volume = 0.2, glideTo = null) {
-        if (!soundState.enabled) return;
-        ensureAudio();
-        if (!soundState.ctx || !soundState.masterGain) return;
+    function saveLeaderboard(newScore) {
+        if (!Number.isFinite(newScore) || newScore <= 0) return;
+        const next = [...getLeaderboard(), newScore]
+            .sort((a, b) => b - a)
+            .slice(0, 5);
+        localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(next));
+    }
 
-        const now = soundState.ctx.currentTime;
-        const osc = soundState.ctx.createOscillator();
-        const gain = soundState.ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(frequency, now);
-        if (glideTo) {
-            osc.frequency.linearRampToValueAtTime(glideTo, now + duration);
+    function renderLeaderboard() {
+        const top = getLeaderboard();
+        leaderboardList.innerHTML = "";
+        for (let i = 0; i < 5; i += 1) {
+            const li = document.createElement("li");
+            li.textContent = top[i] ? `${top[i]} xal` : "---";
+            leaderboardList.appendChild(li);
         }
-
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.exponentialRampToValueAtTime(Math.max(0.001, volume), now + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-        osc.connect(gain);
-        gain.connect(soundState.masterGain);
-        osc.start(now);
-        osc.stop(now + duration + 0.02);
     }
 
-    function playJumpSound() {
-        playTone("triangle", 280, 0.12, 0.18, 420);
+    function updateSkinButtons() {
+        const buttons = skinList.querySelectorAll(".skin-btn");
+        buttons.forEach((btn) => {
+            btn.classList.toggle("selected", btn.dataset.color === selectedSkin);
+        });
     }
 
-    function playCoinSound() {
-        playTone("sine", 760, 0.1, 0.14, 980);
+    function updateHighScore() {
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem(HIGH_SCORE_KEY, String(highScore));
+        }
     }
 
-    function playHitSound() {
-        playTone("square", 180, 0.2, 0.16, 90);
+    function updateHud() {
+        scoreText.textContent = `Xal: ${score} | Rekord: ${highScore}`;
+        livesText.textContent = `Can: ${"❤️".repeat(Math.max(0, lives))}`;
+        levelText.textContent = `${level ? level.name : "Səviyyə"}`;
+
+        if (activePowerUp) {
+            const sec = Math.max(0, activePowerUp.time / 1000).toFixed(1);
+            const label = getPowerUpLabel(activePowerUp.type);
+            powerupText.textContent = `Power-up: ${label} (${sec}s)`;
+        } else {
+            powerupText.textContent = "Power-up: yoxdur";
+        }
     }
 
-    function playEnemyDestroySound() {
-        playTone("sawtooth", 320, 0.16, 0.17, 120);
+    function getPowerUpLabel(type) {
+        if (type === "star") return "⭐ Ulduz";
+        if (type === "speed") return "💨 Sürət";
+        return "🧲 Maqnit";
+    }
+
+    function showMenu() {
+        state = GAME_STATE.MAIN_MENU;
+        hud.classList.add("hidden");
+        mainMenu.classList.remove("hidden");
+        messageScreen.classList.add("hidden");
+        menuHighScore.textContent = `Rekord: ${highScore}`;
+        renderLeaderboard();
+        updateSkinButtons();
+    }
+
+    function showMessage(title, subtitle, buttonText, onClick) {
+        messageTitle.textContent = title;
+        messageSubtitle.textContent = subtitle;
+        messageBtn.textContent = buttonText;
+        messageBtn.onclick = onClick;
+        messageScreen.classList.remove("hidden");
+    }
+
+    function hideMessage() {
+        messageScreen.classList.add("hidden");
     }
 
     function cloneRects(items) {
         return items.map((item) => ({ ...item }));
     }
 
-    // Ən az 3 səviyyə xəritəsi + yeni platformalar + gizli sikkə + power-up
+    function makePlatform(x, y, w, h, type = "normal", extra = {}) {
+        return { x, y, w, h, type, ...extra };
+    }
+
+    // 3 səviyyə: day / evening / night fonları ilə
     function buildLevels() {
         const groundY = canvas.height - 50;
 
         return [
             {
                 name: "Səviyyə 1",
+                theme: "day",
                 spawn: { x: 120, y: groundY - 120 },
                 worldWidth: 2800,
                 platforms: [
-                    { x: 0, y: groundY, w: 2800, h: 50, type: "normal" },
-                    { x: 340, y: groundY - 130, w: 280, h: 20, type: "normal" },
-                    { x: 760, y: groundY - 220, w: 250, h: 20, type: "ice" },
-                    { x: 1120, y: groundY - 150, w: 140, h: 20, type: "bounce" },
-                    { x: 1420, y: groundY - 210, w: 220, h: 20, type: "breakable" },
-                    { x: 1780, y: groundY - 250, w: 210, h: 20, type: "moving", axis: "x", range: 180, speed: 1.4 },
-                    { x: 2140, y: groundY - 200, w: 170, h: 20, type: "normal" }
+                    makePlatform(0, groundY, 2800, 50, "normal"),
+                    makePlatform(360, groundY - 130, 250, 20, "moving", { axis: "x", range: 100, speed: 2 }),
+                    makePlatform(820, groundY - 220, 220, 20, "bouncy"),
+                    makePlatform(1240, groundY - 180, 260, 20, "ice"),
+                    makePlatform(1760, groundY - 240, 220, 20, "crumbling")
                 ],
                 hazards: [
-                    { x: 660, y: groundY, w: 45, h: 40 },
-                    { x: 1540, y: groundY, w: 45, h: 40 }
+                    { x: 700, y: groundY, w: 45, h: 40 },
+                    { x: 1600, y: groundY, w: 45, h: 40 }
                 ],
                 coins: [
                     { x: 430, y: groundY - 170, r: 11, collected: false },
-                    { x: 830, y: groundY - 260, r: 11, collected: false },
-                    { x: 1210, y: groundY - 190, r: 11, collected: false },
-                    { x: 1490, y: groundY - 250, r: 11, collected: false, hidden: true, revealDistance: 170 },
-                    { x: 1840, y: groundY - 290, r: 11, collected: false }
+                    { x: 900, y: groundY - 270, r: 11, collected: false },
+                    { x: 1300, y: groundY - 220, r: 11, collected: false },
+                    { x: 1820, y: groundY - 290, r: 11, collected: false, hidden: true, revealDistance: 190 },
+                    { x: 2100, y: groundY - 120, r: 11, collected: false, hidden: true, revealDistance: 170 }
                 ],
                 powerUps: [
-                    { type: "star", x: 540, y: groundY - 170, r: 12, collected: false },
-                    { type: "speed", x: 1185, y: groundY - 190, r: 12, collected: false },
-                    { type: "magnet", x: 2200, y: groundY - 240, r: 12, collected: false }
+                    { x: 580, y: groundY - 165, r: 14, type: "star", collected: false },
+                    { x: 1430, y: groundY - 215, r: 14, type: "speed", collected: false },
+                    { x: 1940, y: groundY - 275, r: 14, type: "magnet", collected: false }
                 ],
                 enemies: [
-                    { x: 920, y: groundY - 245, r: 18, vx: 1.6, minX: 780, maxX: 1000, alive: true }
+                    { x: 980, y: groundY - 245, r: 18, vx: 1.8, minX: 840, maxX: 1030, alive: true }
                 ],
-                exitDoor: { x: 2560, y: groundY - 110, w: 70, h: 110 },
+                exitDoor: { x: 2570, y: groundY - 110, w: 70, h: 110 },
                 clouds: [
-                    { x: 150, y: 90, r: 30 },
-                    { x: 650, y: 130, r: 24 },
-                    { x: 1180, y: 100, r: 34 },
-                    { x: 1880, y: 120, r: 28 },
-                    { x: 2440, y: 90, r: 26 }
+                    { x: 120, y: 90, r: 30 },
+                    { x: 670, y: 130, r: 24 },
+                    { x: 1230, y: 100, r: 34 },
+                    { x: 1910, y: 120, r: 28 },
+                    { x: 2410, y: 90, r: 26 }
                 ],
                 mountains: [
                     { x: 100, w: 320, h: 130 },
                     { x: 500, w: 420, h: 180 },
-                    { x: 1000, w: 360, h: 150 },
-                    { x: 1520, w: 440, h: 190 },
-                    { x: 2140, w: 360, h: 140 }
+                    { x: 1020, w: 360, h: 150 },
+                    { x: 1600, w: 440, h: 190 },
+                    { x: 2200, w: 360, h: 140 }
                 ]
             },
             {
                 name: "Səviyyə 2",
+                theme: "evening",
                 spawn: { x: 120, y: groundY - 120 },
-                worldWidth: 3400,
+                worldWidth: 3300,
                 platforms: [
-                    { x: 0, y: groundY, w: 3400, h: 50, type: "normal" },
-                    { x: 320, y: groundY - 110, w: 180, h: 20, type: "ice" },
-                    { x: 620, y: groundY - 210, w: 170, h: 20, type: "normal" },
-                    { x: 910, y: groundY - 150, w: 150, h: 20, type: "moving", axis: "y", range: 100, speed: 1.2 },
-                    { x: 1230, y: groundY - 240, w: 160, h: 20, type: "breakable" },
-                    { x: 1540, y: groundY - 170, w: 170, h: 20, type: "bounce" },
-                    { x: 1830, y: groundY - 260, w: 170, h: 20, type: "normal" },
-                    { x: 2200, y: groundY - 180, w: 150, h: 20, type: "moving", axis: "x", range: 170, speed: 1.5 },
-                    { x: 2550, y: groundY - 280, w: 210, h: 20, type: "normal" },
-                    { x: 2890, y: groundY - 190, w: 170, h: 20, type: "ice" }
+                    makePlatform(0, groundY, 3300, 50, "normal"),
+                    makePlatform(360, groundY - 110, 190, 20, "ice"),
+                    makePlatform(700, groundY - 210, 180, 20, "moving", { axis: "y", range: 80, speed: 2.2 }),
+                    makePlatform(1040, groundY - 130, 160, 20, "bouncy"),
+                    makePlatform(1370, groundY - 250, 180, 20, "crumbling"),
+                    makePlatform(1730, groundY - 160, 190, 20, "moving", { axis: "x", range: 120, speed: 1.6 }),
+                    makePlatform(2190, groundY - 250, 180, 20, "bouncy"),
+                    makePlatform(2580, groundY - 170, 220, 20, "ice")
                 ],
                 hazards: [
-                    { x: 520, y: groundY, w: 45, h: 40 },
-                    { x: 1080, y: groundY, w: 45, h: 40 },
-                    { x: 1720, y: groundY, w: 45, h: 40 },
-                    { x: 2330, y: groundY, w: 45, h: 40 }
+                    { x: 560, y: groundY, w: 45, h: 40 },
+                    { x: 1250, y: groundY, w: 45, h: 40 },
+                    { x: 2020, y: groundY, w: 45, h: 40 }
                 ],
                 coins: [
-                    { x: 390, y: groundY - 150, r: 11, collected: false },
-                    { x: 690, y: groundY - 250, r: 11, collected: false },
-                    { x: 1280, y: groundY - 280, r: 11, collected: false, hidden: true, revealDistance: 200 },
-                    { x: 1900, y: groundY - 300, r: 11, collected: false },
-                    { x: 2580, y: groundY - 320, r: 11, collected: false },
-                    { x: 2920, y: groundY - 230, r: 11, collected: false }
+                    { x: 420, y: groundY - 150, r: 11, collected: false },
+                    { x: 760, y: groundY - 250, r: 11, collected: false },
+                    { x: 1110, y: groundY - 170, r: 11, collected: false },
+                    { x: 1440, y: groundY - 290, r: 11, collected: false, hidden: true, revealDistance: 180 },
+                    { x: 1840, y: groundY - 210, r: 11, collected: false },
+                    { x: 2670, y: groundY - 210, r: 11, collected: false, hidden: true, revealDistance: 160 }
                 ],
                 powerUps: [
-                    { type: "speed", x: 700, y: groundY - 285, r: 12, collected: false },
-                    { type: "star", x: 1900, y: groundY - 325, r: 12, collected: false },
-                    { type: "magnet", x: 2930, y: groundY - 225, r: 12, collected: false }
+                    { x: 830, y: groundY - 255, r: 14, type: "star", collected: false },
+                    { x: 1540, y: groundY - 295, r: 14, type: "speed", collected: false },
+                    { x: 2740, y: groundY - 215, r: 14, type: "magnet", collected: false }
                 ],
                 enemies: [
-                    { x: 975, y: groundY - 185, r: 18, vx: 2, minX: 910, maxX: 1040, alive: true },
-                    { x: 1880, y: groundY - 295, r: 18, vx: 1.8, minX: 1840, maxX: 1990, alive: true }
+                    { x: 1110, y: groundY - 165, r: 18, vx: 2, minX: 1040, maxX: 1190, alive: true },
+                    { x: 2260, y: groundY - 285, r: 18, vx: 1.8, minX: 2200, maxX: 2380, alive: true }
                 ],
-                exitDoor: { x: 3160, y: groundY - 110, w: 70, h: 110 },
+                exitDoor: { x: 3030, y: groundY - 110, w: 70, h: 110 },
                 clouds: [
                     { x: 80, y: 80, r: 26 },
                     { x: 560, y: 110, r: 30 },
@@ -582,41 +669,46 @@
             },
             {
                 name: "Səviyyə 3",
+                theme: "night",
                 spawn: { x: 120, y: groundY - 120 },
-                worldWidth: 3800,
+                worldWidth: 3700,
                 platforms: [
-                    { x: 0, y: groundY, w: 3800, h: 50, type: "normal" },
-                    { x: 260, y: groundY - 120, w: 140, h: 20, type: "normal" },
-                    { x: 510, y: groundY - 250, w: 130, h: 20, type: "moving", axis: "x", range: 140, speed: 1.8 },
-                    { x: 760, y: groundY - 140, w: 140, h: 20, type: "ice" },
-                    { x: 1030, y: groundY - 280, w: 130, h: 20, type: "breakable" },
-                    { x: 1280, y: groundY - 170, w: 130, h: 20, type: "bounce" },
-                    { x: 1560, y: groundY - 300, w: 130, h: 20, type: "moving", axis: "y", range: 120, speed: 1.35 },
-                    { x: 1830, y: groundY - 180, w: 140, h: 20, type: "normal" },
-                    { x: 2120, y: groundY - 320, w: 130, h: 20, type: "ice" },
-                    { x: 2410, y: groundY - 200, w: 130, h: 20, type: "normal" },
-                    { x: 2730, y: groundY - 340, w: 150, h: 20, type: "breakable" },
-                    { x: 3070, y: groundY - 220, w: 170, h: 20, type: "bounce" }
+                    makePlatform(0, groundY, 3700, 50, "normal"),
+                    makePlatform(300, groundY - 120, 170, 20, "crumbling"),
+                    makePlatform(590, groundY - 240, 150, 20, "moving", { axis: "x", range: 90, speed: 2.2 }),
+                    makePlatform(880, groundY - 140, 170, 20, "bouncy"),
+                    makePlatform(1210, groundY - 280, 150, 20, "ice"),
+                    makePlatform(1510, groundY - 170, 150, 20, "moving", { axis: "y", range: 70, speed: 2 }),
+                    makePlatform(1820, groundY - 300, 170, 20, "bouncy"),
+                    makePlatform(2170, groundY - 190, 160, 20, "crumbling"),
+                    makePlatform(2500, groundY - 320, 180, 20, "ice"),
+                    makePlatform(2910, groundY - 220, 190, 20, "moving", { axis: "x", range: 110, speed: 1.6 }),
+                    makePlatform(3280, groundY - 320, 170, 20, "bouncy")
                 ],
                 hazards: [
-                    { x: 440, y: groundY, w: 45, h: 40 },
-                    { x: 670, y: groundY, w: 45, h: 40 },
-                    { x: 950, y: groundY, w: 45, h: 40 },
-                    { x: 1210, y: groundY, w: 45, h: 40 },
-                    { x: 1490, y: groundY, w: 45, h: 40 },
-                    { x: 1770, y: groundY, w: 45, h: 40 },
-                    { x: 2050, y: groundY, w: 45, h: 40 },
-                    { x: 2340, y: groundY, w: 45, h: 40 },
-                    { x: 2660, y: groundY, w: 45, h: 40 }
+                    { x: 500, y: groundY, w: 45, h: 40 },
+                    { x: 800, y: groundY, w: 45, h: 40 },
+                    { x: 1130, y: groundY, w: 45, h: 40 },
+                    { x: 1460, y: groundY, w: 45, h: 40 },
+                    { x: 1750, y: groundY, w: 45, h: 40 },
+                    { x: 2060, y: groundY, w: 45, h: 40 },
+                    { x: 2380, y: groundY, w: 45, h: 40 },
+                    { x: 2700, y: groundY, w: 45, h: 40 },
+                    { x: 3160, y: groundY, w: 45, h: 40 }
                 ],
                 coins: [
-                    { x: 320, y: groundY - 160, r: 11, collected: false },
-                    { x: 570, y: groundY - 290, r: 11, collected: false, hidden: true, revealDistance: 210 },
-                    { x: 1080, y: groundY - 320, r: 11, collected: false },
-                    { x: 1610, y: groundY - 350, r: 11, collected: false },
-                    { x: 2170, y: groundY - 370, r: 11, collected: false },
-                    { x: 2780, y: groundY - 390, r: 11, collected: false },
-                    { x: 3140, y: groundY - 260, r: 11, collected: false }
+                    { x: 360, y: groundY - 160, r: 11, collected: false },
+                    { x: 640, y: groundY - 280, r: 11, collected: false, hidden: true, revealDistance: 180 },
+                    { x: 960, y: groundY - 180, r: 11, collected: false },
+                    { x: 1260, y: groundY - 320, r: 11, collected: false },
+                    { x: 1870, y: groundY - 340, r: 11, collected: false },
+                    { x: 2570, y: groundY - 360, r: 11, collected: false, hidden: true, revealDistance: 200 },
+                    { x: 3340, y: groundY - 360, r: 11, collected: false }
+                ],
+                powerUps: [
+                    { x: 710, y: groundY - 285, r: 14, type: "star", collected: false },
+                    { x: 1940, y: groundY - 345, r: 14, type: "speed", collected: false },
+                    { x: 3400, y: groundY - 365, r: 14, type: "magnet", collected: false }
                 ],
                 powerUps: [
                     { type: "magnet", x: 1080, y: groundY - 350, r: 12, collected: false },
@@ -624,12 +716,12 @@
                     { type: "speed", x: 3140, y: groundY - 285, r: 12, collected: false }
                 ],
                 enemies: [
-                    { x: 820, y: groundY - 175, r: 18, vx: 2.4, minX: 770, maxX: 890, alive: true },
-                    { x: 1320, y: groundY - 205, r: 18, vx: 2.1, minX: 1290, maxX: 1390, alive: true },
-                    { x: 1890, y: groundY - 215, r: 18, vx: 2.3, minX: 1840, maxX: 1960, alive: true },
-                    { x: 2460, y: groundY - 235, r: 18, vx: 2.5, minX: 2420, maxX: 2520, alive: true }
+                    { x: 950, y: groundY - 175, r: 18, vx: 2.4, minX: 890, maxX: 1030, alive: true },
+                    { x: 1550, y: groundY - 205, r: 18, vx: 2.1, minX: 1490, maxX: 1640, alive: true },
+                    { x: 2230, y: groundY - 225, r: 18, vx: 2.2, minX: 2170, maxX: 2320, alive: true },
+                    { x: 2980, y: groundY - 245, r: 18, vx: 2.3, minX: 2920, maxX: 3090, alive: true }
                 ],
-                exitDoor: { x: 3540, y: groundY - 110, w: 80, h: 110 },
+                exitDoor: { x: 3480, y: groundY - 110, w: 80, h: 110 },
                 clouds: [
                     { x: 110, y: 80, r: 25 },
                     { x: 700, y: 110, r: 34 },
@@ -651,152 +743,174 @@
         ];
     }
 
-    function updateHighScore() {
-        if (score > highScore) {
-            highScore = score;
-            localStorage.setItem(HIGH_SCORE_KEY, String(highScore));
+    function initAudio() {
+        if (audioCtx) return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+
+        audioCtx = new AC();
+        masterGain = audioCtx.createGain();
+        musicGain = audioCtx.createGain();
+        sfxGain = audioCtx.createGain();
+
+        masterGain.gain.value = isMuted ? 0 : 1;
+        musicGain.gain.value = 0.08;
+        sfxGain.gain.value = 0.18;
+
+        musicGain.connect(masterGain);
+        sfxGain.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+
+        startMusic();
+    }
+
+    // Arxa fon musiqisi: sadə oscillator loop
+    function startMusic() {
+        if (!audioCtx || musicOscillators.length) return;
+
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+
+        osc1.type = "triangle";
+        osc2.type = "sine";
+        osc1.frequency.value = 196;
+        osc2.frequency.value = 261.63;
+
+        lfo.type = "sine";
+        lfo.frequency.value = 0.12;
+        lfoGain.gain.value = 24;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc2.frequency);
+
+        osc1.connect(musicGain);
+        osc2.connect(musicGain);
+
+        const now = audioCtx.currentTime;
+        osc1.start(now);
+        osc2.start(now);
+        lfo.start(now);
+
+        musicOscillators = [osc1, osc2, lfo];
+
+        const chord = [196, 220, 246.94, 261.63, 293.66];
+        let i = 0;
+        musicIntervalId = setInterval(() => {
+            if (!audioCtx || state === GAME_STATE.MAIN_MENU) return;
+            i = (i + 1) % chord.length;
+            const t = audioCtx.currentTime;
+            osc1.frequency.cancelScheduledValues(t);
+            osc2.frequency.cancelScheduledValues(t);
+            osc1.frequency.linearRampToValueAtTime(chord[i], t + 0.25);
+            osc2.frequency.linearRampToValueAtTime(chord[(i + 2) % chord.length], t + 0.25);
+        }, 900);
+    }
+
+    // Səs resurslarını düzgün sərbəst buraxmaq üçün təmizləmə
+    function stopAudio() {
+        if (musicIntervalId) {
+            clearInterval(musicIntervalId);
+            musicIntervalId = null;
         }
-    }
-
-    function saveLeaderboard() {
-        localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
-    }
-
-    function pushLeaderboard(value) {
-        leaderboard.push(value);
-        leaderboard.sort((a, b) => b - a);
-        leaderboard = leaderboard.slice(0, 5);
-        saveLeaderboard();
-        refreshMenuMeta();
-    }
-
-    function refreshMenuMeta() {
-        menuBest.textContent = `Rekord: ${highScore}`;
-
-        leaderboardList.innerHTML = "";
-        if (!leaderboard.length) {
-            const li = document.createElement("li");
-            li.textContent = "Hələ nəticə yoxdur";
-            leaderboardList.appendChild(li);
-            return;
-        }
-
-        leaderboard.forEach((value, index) => {
-            const li = document.createElement("li");
-            li.textContent = `${index + 1}. ${value} xal`;
-            leaderboardList.appendChild(li);
+        musicOscillators.forEach((osc) => {
+            try { osc.stop(); } catch { /* oscillator artıq dayanmış ola bilər */ }
         });
+        musicOscillators = [];
     }
 
-    function applySkin(skinName) {
-        const color = SKINS[skinName] || SKINS.red;
-        player.baseColor = color;
-        if (!isAnyPowerActive()) {
-            player.color = color;
-        }
-        localStorage.setItem(SKIN_KEY, skinName);
+    // Səs effektləri
+    function playSfx(type) {
+        if (!audioCtx || isMuted) return;
 
-        document.querySelectorAll(".skin-btn").forEach((btn) => {
-            btn.classList.toggle("selected", btn.dataset.skin === skinName);
-        });
-    }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(sfxGain);
 
-    function updateHud() {
-        scoreText.textContent = `Xal: ${score} | Rekord: ${highScore}`;
-        livesText.textContent = `Can: ${"❤️".repeat(Math.max(0, lives))}`;
-        levelText.textContent = `${level ? level.name : "Səviyyə"}`;
-    }
-
-    function showMenu() {
-        state = GAME_STATE.MENU;
-        menuScreen.classList.remove("hidden");
-        messageScreen.classList.add("hidden");
-        refreshMenuMeta();
-    }
-
-    function showMessage(title, subtitle, primaryText, primaryAction, secondaryText = "Baş Menyu", secondaryAction = showMenu) {
-        messageTitle.textContent = title;
-        messageSubtitle.textContent = subtitle;
-        messagePrimaryBtn.textContent = primaryText;
-        messagePrimaryBtn.onclick = primaryAction;
-
-        if (secondaryText) {
-            messageSecondaryBtn.textContent = secondaryText;
-            messageSecondaryBtn.style.display = "inline-block";
-            messageSecondaryBtn.onclick = secondaryAction;
-        } else {
-            messageSecondaryBtn.style.display = "none";
-        }
-
-        menuScreen.classList.add("hidden");
-        messageScreen.classList.remove("hidden");
-    }
-
-    function hideOverlays() {
-        menuScreen.classList.add("hidden");
-        messageScreen.classList.add("hidden");
-    }
-
-    function isAnyPowerActive() {
-        return powerState.star > 0 || powerState.speed > 0 || powerState.magnet > 0;
-    }
-
-    function resetPowers() {
-        powerState.star = 0;
-        powerState.speed = 0;
-        powerState.magnet = 0;
-        player.color = player.baseColor;
-        powerIndicator.style.display = "none";
-    }
-
-    function refreshPowerColorAndUi() {
-        if (powerState.star > 0) {
-            player.color = "#FFEB3B";
-            powerIndicator.style.display = "block";
-            powerIndicator.textContent = `⭐ Ulduz: ${(powerState.star / 60).toFixed(1)}s`;
-            return;
+        const t = audioCtx.currentTime;
+        if (type === "jump") {
+            osc.type = "square";
+            osc.frequency.setValueAtTime(420, t);
+            osc.frequency.exponentialRampToValueAtTime(180, t + 0.15);
+            gain.gain.setValueAtTime(0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+        } else if (type === "coin") {
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(760, t);
+            osc.frequency.exponentialRampToValueAtTime(1120, t + 0.08);
+            gain.gain.setValueAtTime(0.14, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+        } else if (type === "damage") {
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(160, t);
+            osc.frequency.exponentialRampToValueAtTime(90, t + 0.22);
+            gain.gain.setValueAtTime(0.16, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.23);
+        } else if (type === "enemy") {
+            osc.type = "square";
+            osc.frequency.setValueAtTime(280, t);
+            osc.frequency.exponentialRampToValueAtTime(80, t + 0.2);
+            gain.gain.setValueAtTime(0.14, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.21);
+        } else if (type === "power") {
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(330, t);
+            osc.frequency.exponentialRampToValueAtTime(920, t + 0.2);
+            gain.gain.setValueAtTime(0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.21);
         }
 
-        if (powerState.speed > 0) {
-            player.color = "#42A5F5";
-            powerIndicator.style.display = "block";
-            powerIndicator.textContent = `💨 Sürət: ${(powerState.speed / 60).toFixed(1)}s`;
-            return;
-        }
-
-        if (powerState.magnet > 0) {
-            player.color = "#AB47BC";
-            powerIndicator.style.display = "block";
-            powerIndicator.textContent = `🧲 Maqnit: ${(powerState.magnet / 60).toFixed(1)}s`;
-            return;
-        }
-
-        player.color = player.baseColor;
-        powerIndicator.style.display = "none";
+        osc.start(t);
+        osc.stop(t + 0.25);
     }
 
-    // Səviyyəni yüklə
+    function toggleMute() {
+        isMuted = !isMuted;
+        muteBtn.textContent = isMuted ? "🔇" : "🔊";
+        if (masterGain) {
+            masterGain.gain.value = isMuted ? 0 : 1;
+        }
+    }
+
+    function applyPowerUp(type) {
+        activePowerUp = { type, time: POWER_UP_DURATIONS[type] };
+        playSfx("power");
+        updateHud();
+    }
+
+    function isInvincible() {
+        return activePowerUp && activePowerUp.type === "star";
+    }
+
+    function getPlayerColor() {
+        if (!activePowerUp) return selectedSkin;
+        if (activePowerUp.type === "star") return "#FFD54F";
+        if (activePowerUp.type === "speed") return "#00E5FF";
+        return "#BA68C8";
+    }
+
     function loadLevel(index) {
         currentLevelIndex = index;
         level = levels[currentLevelIndex];
-        platforms = cloneRects(level.platforms).map((p) => ({
+
+        platforms = level.platforms.map((p) => ({
             ...p,
             baseX: p.x,
             baseY: p.y,
-            phase: Math.random() * Math.PI * 2,
-            dx: 0,
-            dy: 0,
+            phase: Math.random() * TWO_PI,
+            deltaX: 0,
+            deltaY: 0,
+            crumbleStart: null,
             falling: false,
-            fallVy: 0,
-            breaking: false,
-            breakTimer: 0,
-            broken: false,
-            shake: 0
+            fallSpeed: 0
         }));
+
         hazards = cloneRects(level.hazards);
-        coins = level.coins.map((coin) => ({ ...coin, alpha: coin.hidden ? 0 : 1, revealed: !coin.hidden }));
+        coins = level.coins.map((coin) => ({ ...coin, revealed: !coin.hidden }));
         enemies = level.enemies.map((enemy) => ({ ...enemy }));
-        powerUps = level.powerUps.map((p) => ({ ...p }));
+        powerUps = level.powerUps.map((pow) => ({ ...pow }));
         exitDoor = { ...level.exitDoor };
 
         player.x = level.spawn.x;
@@ -808,10 +922,12 @@
         player.onPlatform = null;
         player.squashX = 1;
         player.squashY = 1;
+        player.currentPlatformType = "normal";
 
-        resetPowers();
-
+        activePowerUp = null;
         cameraX = 0;
+
+        hideMessage();
         updateHud();
     }
 
@@ -820,89 +936,89 @@
         lives = 3;
         levels = buildLevels();
         loadLevel(0);
-        hideOverlays();
         state = GAME_STATE.PLAYING;
-        ensureAudio();
+        hud.classList.remove("hidden");
+        mainMenu.classList.add("hidden");
     }
 
     function rebuildLevelAfterResize() {
-        if (!canvas.width || !canvas.height) {
-            return;
-        }
+        if (!canvas.width || !canvas.height) return;
 
+        const oldState = state;
         const oldScore = score;
         const oldLives = lives;
         const oldIndex = currentLevelIndex;
-        const oldState = state;
 
         levels = buildLevels();
-        score = oldScore;
-        lives = oldLives;
 
-        if (oldState !== GAME_STATE.MENU) {
+        if (oldState === GAME_STATE.PLAYING || oldState === GAME_STATE.PAUSED || oldState === GAME_STATE.LEVEL_COMPLETE) {
             loadLevel(Math.min(oldIndex, levels.length - 1));
+            score = oldScore;
+            lives = oldLives;
+            state = oldState;
+            updateHud();
         }
+    }
 
-        state = oldState;
+    function addScore(points, x, y) {
+        score += points;
+        updateHighScore();
+        floatingTexts.push({ x, y, text: `+${points}`, alpha: 1, vy: -0.45 });
         updateHud();
     }
 
-    function addParticles(x, y, count, color, speedMin = 1, speedMax = 3, lifeMin = 18, lifeMax = 35) {
-        for (let i = 0; i < count; i += 1) {
+    function makeDustBurst(x, y, color = "rgba(220,220,220,0.9)") {
+        for (let i = 0; i < 10; i += 1) {
+            const angle = (Math.PI * 2 * i) / 10 + Math.random() * 0.3;
+            const speed = 1.4 + Math.random() * 1.7;
+            particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 0.4,
+                life: 22 + Math.random() * 8,
+                color,
+                size: 2 + Math.random() * 2
+            });
+        }
+    }
+
+    function makeExplosion(x, y) {
+        for (let i = 0; i < 22; i += 1) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = speedMin + Math.random() * (speedMax - speedMin);
+            const speed = 2 + Math.random() * 3.4;
             particles.push({
                 x,
                 y,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
-                life: lifeMin + Math.random() * (lifeMax - lifeMin),
-                maxLife: lifeMax,
-                r: 2 + Math.random() * 2,
-                color
+                life: 28 + Math.random() * 14,
+                color: i % 2 ? "#FF7043" : "#FFC107",
+                size: 2 + Math.random() * 3
             });
         }
     }
 
-    function addFloatingText(x, y, text, color = "#fff") {
-        floatingTexts.push({ x, y, text, color, life: 45 });
-    }
-
-    function addScore(points, x = player.x, y = player.y - 30) {
-        score += points;
-        updateHighScore();
-        addFloatingText(x, y, `+${points}`, "#FFEB3B");
-        updateHud();
-    }
-
-    function triggerDamageEffect() {
-        shakeTimer = 16;
-        shakeAmount = 10;
-        redFlashTimer = 14;
-    }
-
     function loseLife() {
-        if (state !== GAME_STATE.PLAYING || powerState.star > 0) {
+        if (state !== GAME_STATE.PLAYING || isInvincible()) {
             return;
         }
 
         playHitSound();
         triggerDamageEffect();
         lives -= 1;
+        screenShakeTime = DAMAGE_SHAKE_MS;
+        damageFlash = DAMAGE_FLASH_ALPHA;
+        playSfx("damage");
         updateHud();
 
         if (lives <= 0) {
             updateHighScore();
-            pushLeaderboard(score);
+            saveLeaderboard(score);
             state = GAME_STATE.GAME_OVER;
-            showMessage(
-                "Game Over",
-                `Cari xal: ${score} | Rekord: ${highScore}`,
-                "Yenidən Oyna",
-                () => startGame(),
-                "Baş Menyu",
-                () => showMenu()
-            );
+            showMessage("Game Over", `Xal: ${score} | Rekord: ${highScore}`, "Yenidən Başla", () => {
+                startGame();
+            });
             return;
         }
 
@@ -917,6 +1033,20 @@
         cameraX = Math.max(0, player.x - canvas.width / 2);
     }
 
+    function pauseGame() {
+        if (state !== GAME_STATE.PLAYING) return;
+        state = GAME_STATE.PAUSED;
+        showMessage("Dayandırıldı", "Oyun dayandırıldı", "Davam et", () => {
+            resumeGame();
+        });
+    }
+
+    function resumeGame() {
+        if (state !== GAME_STATE.PAUSED) return;
+        state = GAME_STATE.PLAYING;
+        hideMessage();
+    }
+
     function checkAABBCircle(cx, cy, cr, rect) {
         const nearestX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
         const nearestY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
@@ -925,93 +1055,84 @@
         return dx * dx + dy * dy <= cr * cr;
     }
 
-    function updatePlatforms() {
-        const time = performance.now() / 1000;
+    function updatePlatforms(deltaMs) {
+        const deltaFactor = deltaMs / 16.67;
 
         platforms.forEach((p) => {
-            p.dx = 0;
-            p.dy = 0;
+            const prevX = p.x;
+            const prevY = p.y;
 
             if (p.type === "moving") {
-                const oldX = p.x;
-                const oldY = p.y;
-                if (p.axis === "x") {
-                    p.x = p.baseX + Math.sin(time * p.speed + p.phase) * p.range;
-                } else {
-                    p.y = p.baseY + Math.sin(time * p.speed + p.phase) * p.range;
-                }
-                p.dx = p.x - oldX;
-                p.dy = p.y - oldY;
+                p.phase += 0.03 * (p.speed || 1) * deltaFactor;
+                if (p.axis === "x") p.x = p.baseX + Math.sin(p.phase) * (p.range || 80);
+                if (p.axis === "y") p.y = p.baseY + Math.sin(p.phase) * (p.range || 80);
             }
 
-            if (p.type === "breakable") {
-                if (p.breaking && !p.broken) {
-                    p.breakTimer -= 1;
-                    p.shake = Math.sin(time * 40) * 2;
-                    if (p.breakTimer <= 0) {
-                        p.broken = true;
-                        p.falling = true;
-                        p.shake = 0;
-                    }
-                }
-
-                if (p.falling) {
-                    p.fallVy += 0.55;
-                    p.y += p.fallVy;
-                    p.dy += p.fallVy;
-                }
+            if (p.falling) {
+                p.fallSpeed += 0.25 * deltaFactor;
+                p.y += p.fallSpeed;
             }
+
+            p.deltaX = p.x - prevX;
+            p.deltaY = p.y - prevY;
         });
     }
 
-    function updatePlayerPhysics() {
-        const speedMultiplier = powerState.speed > 0 ? 2 : 1;
-        const targetSpeed = player.speed * speedMultiplier;
+    function updatePlayerPhysics(deltaMs) {
+        const speedBoost = activePowerUp && activePowerUp.type === "speed" ? 2 : 1;
+        const moveSpeed = player.speed * speedBoost;
 
-        if (inputs.left) player.vx = -targetSpeed;
-        else if (inputs.right) player.vx = targetSpeed;
+        if (inputs.left) player.vx = -moveSpeed;
+        else if (inputs.right) player.vx = moveSpeed;
         else {
-            const onIce = player.onPlatform && player.onPlatform.type === "ice";
-            player.vx *= onIce ? 0.96 : 0.82;
-        }
-
-        if (player.onPlatform && (player.onPlatform.dx || player.onPlatform.dy)) {
-            player.x += player.onPlatform.dx;
-            player.y += player.onPlatform.dy;
+            const friction = player.currentPlatformType === "ice" ? 0.965 : 0.82;
+            player.vx *= friction;
         }
 
         const prevVy = player.vy;
         const prevBottom = player.y + player.radius;
 
-        player.vy += player.gravity;
-        player.x += player.vx;
-        player.y += player.vy;
+        const deltaFactor = deltaMs / 16.67;
+        player.vy += player.gravity * deltaFactor;
+        player.x += player.vx * deltaFactor;
+        player.y += player.vy * deltaFactor;
 
         player.grounded = false;
-        player.onPlatform = null;
+        player.currentPlatformType = "normal";
 
-        // Platforma üst səth toqquşması
+        // Platforma üst səth toqquşması və xüsusi platforma davranışları
         platforms.forEach((p) => {
-            if (p.type === "breakable" && p.broken) return;
+            if (p.falling && p.y > canvas.height + PLATFORM_CULLING_DISTANCE) return;
 
-            const px = p.x + (p.shake || 0);
-            const inHorizontalRange = player.x + player.radius > px && player.x - player.radius < px + p.w;
+            const inHorizontalRange = player.x + player.radius > p.x && player.x - player.radius < p.x + p.w;
             const currentBottom = player.y + player.radius;
+
             if (inHorizontalRange && prevBottom <= p.y && currentBottom >= p.y) {
                 player.y = p.y - player.radius;
+                player.grounded = true;
+                player.currentPlatformType = p.type;
 
-                if (p.type === "bounce") {
-                    player.vy = player.jumpPower * 1.25;
-                    playJumpSound();
+                // Hərəkət edən platformada oyunçu da daşınsın
+                player.x += p.deltaX;
+                player.y += p.deltaY;
+
+                if (p.type === "bouncy" && prevVy > 2) {
+                    player.vy = player.jumpPower * BOUNCY_PLATFORM_BOOST;
+                    player.grounded = false;
+                    playSfx("jump");
+                    makeDustBurst(player.x, player.y + player.radius, "rgba(255,193,7,0.85)");
                 } else {
                     player.vy = 0;
-                    player.grounded = true;
-                    player.onPlatform = p;
                 }
 
-                if (p.type === "breakable" && !p.breaking) {
-                    p.breaking = true;
-                    p.breakTimer = 60;
+                if (p.type === "crumbling" && !p.crumbleStart) {
+                    p.crumbleStart = performance.now();
+                }
+            }
+
+            if (p.type === "crumbling" && p.crumbleStart && !p.falling) {
+                if (performance.now() - p.crumbleStart >= CRUMBLE_DELAY_MS) {
+                    p.falling = true;
                 }
             }
         });
@@ -1057,37 +1178,46 @@
                 coin.revealed = true;
             }
 
-            if (powerState.magnet > 0 && dist < 220) {
-                const pull = 0.12;
-                coin.x += dx * pull;
-                coin.y += dy * pull;
+            if (activePowerUp && activePowerUp.type === "magnet" && dist < 185) {
+                coin.revealed = true;
+                coin.x += dx * MAGNET_PULL_STRENGTH;
+                coin.y += dy * MAGNET_PULL_STRENGTH;
             }
+
+            if (!coin.revealed) return;
 
             const r = player.radius + coin.r;
             if (dist <= r) {
                 coin.collected = true;
-                addScore(10, coin.x, coin.y - 15);
-                playCoinSound();
+                addScore(10, coin.x, coin.y);
+                playSfx("coin");
             }
         });
     }
 
-    function updatePowerUps() {
-        powerUps.forEach((p) => {
-            if (p.collected) return;
-            const dist = Math.hypot(player.x - p.x, player.y - p.y);
-            if (dist <= player.radius + p.r) {
-                p.collected = true;
-                if (p.type === "star") powerState.star = 5 * 60;
-                if (p.type === "speed") powerState.speed = 4 * 60;
-                if (p.type === "magnet") powerState.magnet = 5 * 60;
-                refreshPowerColorAndUi();
-                playTone("triangle", 520, 0.15, 0.18, 760);
+    function updatePowerUps(deltaMs) {
+        if (activePowerUp) {
+            activePowerUp.time -= deltaMs;
+            if (activePowerUp.time <= 0) {
+                activePowerUp = null;
+            }
+            updateHud();
+        }
+
+        powerUps.forEach((pow) => {
+            if (pow.collected) return;
+
+            const dist = Math.hypot(player.x - pow.x, player.y - pow.y);
+            if (dist <= player.radius + pow.r) {
+                pow.collected = true;
+                applyPowerUp(pow.type);
             }
         });
     }
 
     function updateHazards() {
+        if (isInvincible()) return;
+
         for (const hazard of hazards) {
             const hazardRect = {
                 x: hazard.x,
@@ -1125,8 +1255,15 @@
 
             if (distance <= player.radius + enemy.r) {
                 const stompFromTop = player.vy > 1 && player.y < enemy.y - enemy.r * 0.2;
-                if (stompFromTop || powerState.star > 0) {
-                    destroyEnemy(enemy);
+
+                if (stompFromTop || isInvincible()) {
+                    enemy.alive = false;
+                    if (stompFromTop) {
+                        player.vy = player.jumpPower * 0.62;
+                    }
+                    addScore(25, enemy.x, enemy.y - 14);
+                    makeExplosion(enemy.x, enemy.y);
+                    playSfx("enemy");
                 } else {
                     loseLife();
                     break;
@@ -1145,102 +1282,94 @@
             player.y - player.radius < exitDoor.y + exitDoor.h;
 
         if (insideDoor && state === GAME_STATE.PLAYING) {
-            state = GAME_STATE.LEVEL_COMPLETE;
-            showMessage(
-                "Səviyyə tamamlandı",
-                `${level.name} bitdi!`,
-                "Növbəti Səviyyə",
-                () => {
-                    if (currentLevelIndex < levels.length - 1) {
-                        loadLevel(currentLevelIndex + 1);
-                        hideOverlays();
-                        state = GAME_STATE.PLAYING;
-                    } else {
-                        updateHighScore();
-                        pushLeaderboard(score);
-                        state = GAME_STATE.VICTORY;
-                        showMessage(
-                            "Təbriklər!",
-                            `Cari xal: ${score} | Rekord: ${highScore}`,
-                            "Yenidən Oyna",
-                            () => startGame(),
-                            "Baş Menyu",
-                            () => showMenu()
-                        );
-                    }
-                },
-                "Baş Menyu",
-                () => showMenu()
-            );
+            if (currentLevelIndex < levels.length - 1) {
+                state = GAME_STATE.LEVEL_COMPLETE;
+                showMessage("Level Complete", `${level.name} tamamlandı`, "Next Level", () => {
+                    loadLevel(currentLevelIndex + 1);
+                    state = GAME_STATE.PLAYING;
+                });
+            } else {
+                updateHighScore();
+                saveLeaderboard(score);
+                state = GAME_STATE.VICTORY;
+                showMessage("Təbriklər!", `Xal: ${score} | Rekord: ${highScore}`, "Menyuya Qayıt", () => {
+                    showMenu();
+                });
+            }
         }
     }
 
-    function updateEffects() {
-        particles = particles.filter((p) => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.04;
-            p.life -= 1;
-            return p.life > 0;
-        });
-
-        floatingTexts = floatingTexts.filter((t) => {
-            t.y -= 0.7;
-            t.life -= 1;
-            return t.life > 0;
-        });
-
-        if (shakeTimer > 0) {
-            shakeTimer -= 1;
-            if (shakeTimer === 0) shakeAmount = 0;
+    function updateEffects(deltaMs) {
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+            const p = particles[i];
+            p.x += p.vx * (deltaMs / 16.67);
+            p.y += p.vy * (deltaMs / 16.67);
+            p.vy += 0.03 * (deltaMs / 16.67);
+            p.life -= deltaMs / 16.67;
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            }
         }
 
-        if (redFlashTimer > 0) {
-            redFlashTimer -= 1;
+        for (let i = floatingTexts.length - 1; i >= 0; i -= 1) {
+            const t = floatingTexts[i];
+            t.y += t.vy * (deltaMs / 16.67);
+            t.alpha -= 0.018 * (deltaMs / 16.67);
+            if (t.alpha <= 0) {
+                floatingTexts.splice(i, 1);
+            }
         }
-    }
 
-    function togglePause() {
-        if (state === GAME_STATE.PLAYING) {
-            state = GAME_STATE.PAUSED;
-            showMessage("Fasilə", "Oyun dayandırıldı", "Davam et", () => {
-                hideOverlays();
-                state = GAME_STATE.PLAYING;
-            }, "Baş Menyu", () => showMenu());
-        } else if (state === GAME_STATE.PAUSED) {
-            hideOverlays();
-            state = GAME_STATE.PLAYING;
+        if (screenShakeTime > 0) {
+            screenShakeTime -= deltaMs;
+        }
+        if (damageFlash > 0) {
+            damageFlash -= deltaMs / 360;
         }
     }
 
-    function update() {
-        if (state === GAME_STATE.PLAYING) {
-            if (inputs.jump && player.grounded) {
+    function handleJumpInput() {
+        if (inputs.jump) {
+            if (!jumpConsumed && player.grounded) {
                 player.vy = player.jumpPower;
                 player.grounded = false;
-                addParticles(player.x, player.y + player.radius - 2, 8, "rgba(255,255,255,0.9)", 0.8, 2.2, 16, 28);
-                playJumpSound();
+                jumpConsumed = true;
+                playSfx("jump");
+                makeDustBurst(player.x, player.y + player.radius);
             }
-
-            updatePlatforms();
-            updatePlayerPhysics();
-            updatePowerUps();
-            updatePowerTimers();
-            updateCoins();
-            updateHazards();
-            updateEnemies();
-            updateExitDoor();
-
-            cameraX = Math.max(0, Math.min(level.worldWidth - canvas.width, player.x - canvas.width / 2));
+        } else {
+            jumpConsumed = false;
         }
-
-        updateEffects();
-        draw();
-        requestAnimationFrame(update);
     }
 
-    function drawCloud(cloudX, cloudY, radius, color) {
-        ctx.fillStyle = color;
+    function getTheme() {
+        return level?.theme || "day";
+    }
+
+    function drawGradientBackground() {
+        const theme = getTheme();
+        let top = "#87CEEB";
+        let bottom = "#E0F7FA";
+
+        if (theme === "evening") {
+            top = "#FF8A65";
+            bottom = "#6A1B9A";
+        } else if (theme === "night") {
+            top = "#0D1B3A";
+            bottom = "#1B263B";
+        }
+
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, top);
+        grad.addColorStop(1, bottom);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Paralaks buludlar
+    function drawCloud(cloudX, cloudY, radius) {
+        const theme = getTheme();
+        ctx.fillStyle = theme === "night" ? "rgba(220,220,240,0.35)" : "rgba(255,255,255,0.85)";
         ctx.beginPath();
         ctx.arc(cloudX, cloudY, radius, 0, Math.PI * 2);
         ctx.arc(cloudX + radius * 0.9, cloudY + 2, radius * 0.8, 0, Math.PI * 2);
@@ -1265,23 +1394,15 @@
     }
 
     function drawParallaxBackground() {
-        const theme = currentTheme();
-        const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        bg.addColorStop(0, theme.skyTop);
-        bg.addColorStop(1, theme.skyBottom);
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Arxa qat: buludlar (daha yavaş)
         const cloudParallax = 0.25;
         level.clouds.forEach((cloud) => {
             const x = cloud.x - cameraX * cloudParallax;
             drawCloud(x, cloud.y, cloud.r, theme.cloud);
         });
 
-        // Orta qat: dağlar (orta sürət)
         const mountainParallax = 0.5;
-        ctx.fillStyle = theme.mountain;
+        const theme = getTheme();
+        ctx.fillStyle = theme === "night" ? "rgba(88, 112, 140, 0.42)" : "rgba(96, 125, 139, 0.45)";
         level.mountains.forEach((mountain) => {
             const x = mountain.x - cameraX * mountainParallax;
             drawMountain(x, mountain.w, mountain.h);
@@ -1290,9 +1411,7 @@
 
     function drawCoins() {
         coins.forEach((coin) => {
-            if (coin.collected) return;
-            if (coin.hidden && !coin.revealed) return;
-
+            if (coin.collected || !coin.revealed) return;
             ctx.beginPath();
             ctx.arc(coin.x, coin.y, coin.r, 0, Math.PI * 2);
             ctx.fillStyle = "#FFD700";
@@ -1304,22 +1423,18 @@
     }
 
     function drawPowerUps() {
-        powerUps.forEach((p) => {
-            if (p.collected) return;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.font = "22px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
 
-            if (p.type === "star") {
-                ctx.fillStyle = "#FFEB3B";
-            } else if (p.type === "speed") {
-                ctx.fillStyle = "#42A5F5";
-            } else {
-                ctx.fillStyle = "#AB47BC";
-            }
+        powerUps.forEach((pow) => {
+            if (pow.collected) return;
+            const icon = pow.type === "star" ? "⭐" : pow.type === "speed" ? "💨" : "🧲";
+            ctx.fillStyle = "rgba(255,255,255,0.15)";
+            ctx.beginPath();
+            ctx.arc(pow.x, pow.y, pow.r + 6, 0, Math.PI * 2);
             ctx.fill();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = "rgba(0,0,0,0.35)";
-            ctx.stroke();
+            ctx.fillText(icon, pow.x, pow.y + 1);
         });
     }
 
@@ -1367,29 +1482,58 @@
 
     function drawPlatforms() {
         platforms.forEach((p) => {
-            if (p.type === "breakable" && p.broken) return;
+            if (p.falling && p.y > canvas.height + PLATFORM_CULLING_DISTANCE) return;
 
-            if (p.type === "bounce") {
-                ctx.fillStyle = "#FFB74D";
+            let base = "#4CAF50";
+            let top = "#388E3C";
+
+            if (p.type === "moving") {
+                base = "#5C6BC0";
+                top = "#3F51B5";
+            } else if (p.type === "crumbling") {
+                const nearBreak = p.crumbleStart && !p.falling;
+                base = nearBreak ? "#EF5350" : "#8D6E63";
+                top = nearBreak ? "#D32F2F" : "#6D4C41";
+            } else if (p.type === "bouncy") {
+                base = "#FFA726";
+                top = "#F57C00";
             } else if (p.type === "ice") {
-                ctx.fillStyle = "#81D4FA";
-            } else if (p.type === "breakable") {
-                ctx.fillStyle = p.breaking ? "#EF5350" : "#8D6E63";
-            } else if (p.type === "moving") {
-                ctx.fillStyle = "#66BB6A";
-            } else {
-                ctx.fillStyle = "#4CAF50";
+                base = "#81D4FA";
+                top = "#4FC3F7";
             }
 
-            const drawX = p.x + (p.shake || 0);
-            ctx.fillRect(drawX, p.y, p.w, p.h);
+            const shakeX = p.type === "crumbling" && p.crumbleStart && !p.falling ? (Math.random() - 0.5) * 2 : 0;
 
-            ctx.fillStyle = "rgba(0,0,0,0.18)";
-            ctx.fillRect(drawX, p.y, p.w, 4);
+            ctx.fillStyle = base;
+            ctx.fillRect(p.x + shakeX, p.y, p.w, p.h);
+            ctx.fillStyle = top;
+            ctx.fillRect(p.x + shakeX, p.y, p.w, 5);
         });
     }
 
+    function drawParticlesAndTexts() {
+        particles.forEach((p) => {
+            ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 30));
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        ctx.globalAlpha = 1;
+        ctx.font = "bold 18px Arial";
+        ctx.textAlign = "center";
+        floatingTexts.forEach((t) => {
+            ctx.globalAlpha = Math.max(0, t.alpha);
+            ctx.fillStyle = "#FFEB3B";
+            ctx.fillText(t.text, t.x, t.y);
+        });
+        ctx.globalAlpha = 1;
+    }
+
     function drawPlayer() {
+        player.color = getPlayerColor();
+
         ctx.save();
         ctx.translate(player.x, player.y);
         ctx.scale(player.squashX, player.squashY);
@@ -1414,69 +1558,67 @@
         ctx.restore();
     }
 
-    function drawParticles() {
-        particles.forEach((p) => {
-            const alpha = Math.max(0, p.life / p.maxLife);
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            ctx.fill();
-        });
-        ctx.globalAlpha = 1;
-    }
-
-    function drawFloatingTexts() {
-        floatingTexts.forEach((t) => {
-            ctx.globalAlpha = Math.max(0, t.life / 45);
-            ctx.fillStyle = t.color;
-            ctx.font = "bold 20px Arial";
-            ctx.fillText(t.text, t.x, t.y);
-        });
-        ctx.globalAlpha = 1;
-    }
-
-    function drawDamageOverlay() {
-        if (redFlashTimer <= 0) return;
-        const alpha = redFlashTimer / 20;
-        ctx.fillStyle = `rgba(255, 0, 0, ${Math.min(0.34, alpha * 0.35)})`;
+    function drawDamageFlash() {
+        if (damageFlash <= 0) return;
+        ctx.save();
+        ctx.fillStyle = `rgba(255, 0, 0, ${Math.max(0, damageFlash)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGradientBackground();
 
-        if (!level) return;
-
-        let shakeX = 0;
-        let shakeY = 0;
-        if (shakeTimer > 0) {
-            shakeX = (Math.random() - 0.5) * shakeAmount;
-            shakeY = (Math.random() - 0.5) * shakeAmount;
+        ctx.save();
+        if (screenShakeTime > 0) {
+            const power = Math.min(10, screenShakeTime / 45);
+            const sx = (Math.random() - 0.5) * power;
+            const sy = (Math.random() - 0.5) * power;
+            ctx.translate(sx, sy);
         }
 
-        ctx.save();
-        ctx.translate(shakeX, shakeY);
+        if (level) {
+            drawParallaxBackground();
 
-        drawParallaxBackground();
+            ctx.save();
+            ctx.translate(-cameraX, 0);
 
-        ctx.save();
-        ctx.translate(-cameraX, 0);
+            drawPlatforms();
+            drawHazards();
+            drawCoins();
+            drawPowerUps();
+            drawEnemies();
+            drawDoor();
+            drawParticlesAndTexts();
+            drawPlayer();
 
-        drawPlatforms();
-        drawHazards();
-        drawCoins();
-        drawPowerUps();
-        drawEnemies();
-        drawDoor();
-        drawPlayer();
-        drawParticles();
-        drawFloatingTexts();
+            ctx.restore();
+        }
 
         ctx.restore();
+        drawDamageFlash();
+    }
 
-        drawDamageOverlay();
-        ctx.restore();
+    function update(timestamp) {
+        const deltaMs = Math.min(MAX_DELTA_MS, Math.max(MIN_DELTA_MS, timestamp - lastFrameTime));
+        lastFrameTime = timestamp;
+
+        if (state === GAME_STATE.PLAYING) {
+            handleJumpInput();
+            updatePlatforms(deltaMs);
+            updatePlayerPhysics(deltaMs);
+            updateCoins();
+            updatePowerUps(deltaMs);
+            updateHazards();
+            updateEnemies();
+            updateExitDoor();
+
+            cameraX = Math.max(0, Math.min(level.worldWidth - canvas.width, player.x - canvas.width / 2));
+        }
+
+        updateEffects(deltaMs);
+        draw();
+        requestAnimationFrame(update);
     }
 
     // Touch kontrolları
@@ -1486,6 +1628,8 @@
             e.preventDefault();
             ensureAudio();
             inputs[key] = true;
+            initAudio();
+            if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
         };
         const end = (e) => {
             e.preventDefault();
@@ -1505,23 +1649,23 @@
     setupInput("rightBtn", "right");
     setupInput("jumpBtn", "jump");
 
+    // Klaviatura kontrolları (mövcud sxem saxlanılır)
     window.addEventListener("keydown", (e) => {
-        ensureAudio();
-
         if (["ArrowLeft", "ArrowRight", "ArrowUp", "Space", "KeyP"].includes(e.code)) {
             e.preventDefault();
         }
 
-        if (e.code === "KeyP") {
-            togglePause();
-            return;
-        }
-
-        if (state !== GAME_STATE.PLAYING) return;
+        initAudio();
+        if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
 
         if (e.code === "ArrowLeft") inputs.left = true;
         if (e.code === "ArrowRight") inputs.right = true;
         if (e.code === "Space" || e.code === "ArrowUp") inputs.jump = true;
+
+        if (e.code === "KeyP") {
+            if (state === GAME_STATE.PLAYING) pauseGame();
+            else if (state === GAME_STATE.PAUSED) resumeGame();
+        }
     });
 
     window.addEventListener("keyup", (e) => {
@@ -1531,35 +1675,40 @@
     });
 
     pauseBtn.addEventListener("click", () => {
-        ensureAudio();
-        if (state === GAME_STATE.PLAYING || state === GAME_STATE.PAUSED) {
-            togglePause();
-        }
+        if (state === GAME_STATE.PLAYING) pauseGame();
+        else if (state === GAME_STATE.PAUSED) resumeGame();
     });
 
-    soundBtn.addEventListener("click", () => {
-        setSoundEnabled(!soundState.enabled);
+    muteBtn.addEventListener("click", () => {
+        initAudio();
+        toggleMute();
+    });
+
+    skinList.addEventListener("click", (e) => {
+        const btn = e.target.closest(".skin-btn");
+        if (!btn) return;
+        selectedSkin = btn.dataset.color;
+        localStorage.setItem(SKIN_KEY, selectedSkin);
+        updateSkinButtons();
     });
 
     playBtn.addEventListener("click", () => {
+        initAudio();
+        if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
         startGame();
     });
 
-    skinWrap.addEventListener("click", (e) => {
-        const btn = e.target.closest(".skin-btn");
-        if (!btn) return;
-        applySkin(btn.dataset.skin);
-    });
+    window.addEventListener("beforeunload", stopAudio);
 
     // İlkin yükləmə
     resize();
     levels = buildLevels();
-    loadLevel(0);
-    applySkin((localStorage.getItem(SKIN_KEY) || "red"));
-    syncSoundUi();
-    refreshMenuMeta();
     showMenu();
-    update();
+    updateHud();
+    requestAnimationFrame((t) => {
+        lastFrameTime = t;
+        update(t);
+    });
 </script>
 </body>
 </html>
