@@ -306,6 +306,16 @@
     const HIGH_SCORE_KEY = "red_ball_high_score";
     const LEADERBOARD_KEY = "red_ball_leaderboard_top5";
     const SKIN_KEY = "red_ball_selected_skin";
+    const POWER_UP_DURATIONS = { star: 5000, speed: 4000, magnet: 5000 };
+    const CRUMBLE_DELAY_MS = 1000;
+    const DAMAGE_SHAKE_MS = 340;
+    const DAMAGE_FLASH_ALPHA = 0.42;
+    const MIN_DELTA_MS = 8;
+    const MAX_DELTA_MS = 40;
+    const BOUNCY_PLATFORM_BOOST = 1.35;
+    const MAGNET_PULL_STRENGTH = 0.08;
+    const PLATFORM_CULLING_DISTANCE = 240;
+    const TWO_PI = Math.PI * 2;
 
     // Oyun vəziyyətləri
     const GAME_STATE = {
@@ -370,6 +380,7 @@
     let musicGain = null;
     let sfxGain = null;
     let musicOscillators = [];
+    let musicIntervalId = null;
     let isMuted = false;
 
     function resize() {
@@ -429,11 +440,17 @@
 
         if (activePowerUp) {
             const sec = Math.max(0, activePowerUp.time / 1000).toFixed(1);
-            const label = activePowerUp.type === "star" ? "⭐ Ulduz" : activePowerUp.type === "speed" ? "💨 Sürət" : "🧲 Maqnit";
+            const label = getPowerUpLabel(activePowerUp.type);
             powerupText.textContent = `Power-up: ${label} (${sec}s)`;
         } else {
             powerupText.textContent = "Power-up: yoxdur";
         }
+    }
+
+    function getPowerUpLabel(type) {
+        if (type === "star") return "⭐ Ulduz";
+        if (type === "speed") return "💨 Sürət";
+        return "🧲 Maqnit";
     }
 
     function showMenu() {
@@ -698,7 +715,7 @@
 
         const chord = [196, 220, 246.94, 261.63, 293.66];
         let i = 0;
-        setInterval(() => {
+        musicIntervalId = setInterval(() => {
             if (!audioCtx || state === GAME_STATE.MAIN_MENU) return;
             i = (i + 1) % chord.length;
             const t = audioCtx.currentTime;
@@ -707,6 +724,18 @@
             osc1.frequency.linearRampToValueAtTime(chord[i], t + 0.25);
             osc2.frequency.linearRampToValueAtTime(chord[(i + 2) % chord.length], t + 0.25);
         }, 900);
+    }
+
+    // Səs resurslarını düzgün sərbəst buraxmaq üçün təmizləmə
+    function stopAudio() {
+        if (musicIntervalId) {
+            clearInterval(musicIntervalId);
+            musicIntervalId = null;
+        }
+        musicOscillators.forEach((osc) => {
+            try { osc.stop(); } catch { /* oscillator artıq dayanmış ola bilər */ }
+        });
+        musicOscillators = [];
     }
 
     // Səs effektləri
@@ -764,8 +793,7 @@
     }
 
     function applyPowerUp(type) {
-        const durations = { star: 5000, speed: 4000, magnet: 5000 };
-        activePowerUp = { type, time: durations[type] };
+        activePowerUp = { type, time: POWER_UP_DURATIONS[type] };
         playSfx("power");
         updateHud();
     }
@@ -789,7 +817,7 @@
             ...p,
             baseX: p.x,
             baseY: p.y,
-            phase: Math.random() * Math.PI * 2,
+            phase: Math.random() * TWO_PI,
             deltaX: 0,
             deltaY: 0,
             crumbleStart: null,
@@ -894,8 +922,8 @@
         }
 
         lives -= 1;
-        screenShakeTime = 340;
-        damageFlash = 0.42;
+        screenShakeTime = DAMAGE_SHAKE_MS;
+        damageFlash = DAMAGE_FLASH_ALPHA;
         playSfx("damage");
         updateHud();
 
@@ -922,7 +950,7 @@
     function pauseGame() {
         if (state !== GAME_STATE.PLAYING) return;
         state = GAME_STATE.PAUSED;
-        showMessage("Pause", "Oyun dayandırıldı", "Davam et", () => {
+        showMessage("Dayandırıldı", "Oyun dayandırıldı", "Davam et", () => {
             resumeGame();
         });
     }
@@ -988,7 +1016,7 @@
 
         // Platforma üst səth toqquşması və xüsusi platforma davranışları
         platforms.forEach((p) => {
-            if (p.falling && p.y > canvas.height + 240) return;
+            if (p.falling && p.y > canvas.height + PLATFORM_CULLING_DISTANCE) return;
 
             const inHorizontalRange = player.x + player.radius > p.x && player.x - player.radius < p.x + p.w;
             const currentBottom = player.y + player.radius;
@@ -1003,7 +1031,7 @@
                 player.y += p.deltaY;
 
                 if (p.type === "bouncy" && prevVy > 2) {
-                    player.vy = player.jumpPower * 1.35;
+                    player.vy = player.jumpPower * BOUNCY_PLATFORM_BOOST;
                     player.grounded = false;
                     playSfx("jump");
                     makeDustBurst(player.x, player.y + player.radius, "rgba(255,193,7,0.85)");
@@ -1017,7 +1045,7 @@
             }
 
             if (p.type === "crumbling" && p.crumbleStart && !p.falling) {
-                if (performance.now() - p.crumbleStart >= 1000) {
+                if (performance.now() - p.crumbleStart >= CRUMBLE_DELAY_MS) {
                     p.falling = true;
                 }
             }
@@ -1058,8 +1086,8 @@
 
             if (activePowerUp && activePowerUp.type === "magnet" && dist < 185) {
                 coin.revealed = true;
-                coin.x += dx * 0.08;
-                coin.y += dy * 0.08;
+                coin.x += dx * MAGNET_PULL_STRENGTH;
+                coin.y += dy * MAGNET_PULL_STRENGTH;
             }
 
             if (!coin.revealed) return;
@@ -1347,7 +1375,7 @@
 
     function drawPlatforms() {
         platforms.forEach((p) => {
-            if (p.falling && p.y > canvas.height + 240) return;
+            if (p.falling && p.y > canvas.height + PLATFORM_CULLING_DISTANCE) return;
 
             let base = "#4CAF50";
             let top = "#388E3C";
@@ -1465,7 +1493,7 @@
     }
 
     function update(timestamp) {
-        const deltaMs = Math.min(40, Math.max(8, timestamp - lastFrameTime));
+        const deltaMs = Math.min(MAX_DELTA_MS, Math.max(MIN_DELTA_MS, timestamp - lastFrameTime));
         lastFrameTime = timestamp;
 
         if (state === GAME_STATE.PLAYING) {
@@ -1557,6 +1585,8 @@
         if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
         startGame();
     });
+
+    window.addEventListener("beforeunload", stopAudio);
 
     // İlkin yükləmə
     resize();
