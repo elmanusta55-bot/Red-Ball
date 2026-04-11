@@ -280,6 +280,24 @@
         speed: "#42A5F5",
         magnet: "#AB47BC"
     };
+    const POWER_NAMES = { star: "⭐ Ulduz", speed: "💨 Sürət", magnet: "🧲 Maqnit" };
+    const POWER_ICONS = { star: "★", speed: "⚡", magnet: "🧲" };
+    const POWER_SOUND_FREQS = { star: 740, speed: 620, magnet: 520 };
+
+    const FPS = 60;
+    const POWER_DURATION_SECONDS = { star: 5, speed: 4, magnet: 5 };
+    const COIN_REVEAL_RADIUS = 170;
+    const MAGNET_RADIUS = 230;
+    const MAGNET_PULL_MIN = 1.2;
+    const MAGNET_PULL_BASE = 7;
+    const MAGNET_PULL_DISTANCE_DIV = 35;
+    const PARTICLE_LIFE_MIN = 28;
+    const PARTICLE_LIFE_RANGE = 20;
+    const PARTICLE_RADIUS_MIN = 2;
+    const PARTICLE_RADIUS_RANGE = 2;
+    const PARTICLE_LIFT = 0.5;
+    const BREAKABLE_PLATFORM_SHAKE = 3;
+    const SILENT_GAIN_VALUE = 0.0001;
 
     // Oyunçu obyekti
     const player = {
@@ -347,14 +365,15 @@
         musicGain = audioCtx.createGain();
         musicOsc.type = "triangle";
         musicOsc.frequency.value = 110;
-        musicGain.gain.value = 0.0001;
+        // 0-a enərkən exponential ramp problemlərindən qaçmaq üçün sıfıra çox yaxın dəyər
+        musicGain.gain.value = SILENT_GAIN_VALUE;
         musicOsc.connect(musicGain).connect(audioCtx.destination);
         musicOsc.start();
     }
 
     function toggleMusic() {
         if (!audioCtx || !musicGain) return;
-        const target = soundEnabled && state === GAME_STATE.PLAYING ? 0.035 : 0.0001;
+        const target = soundEnabled && state === GAME_STATE.PLAYING ? 0.035 : SILENT_GAIN_VALUE;
         musicGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.08);
     }
 
@@ -368,7 +387,7 @@
         osc.type = type;
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
         gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        gain.gain.exponentialRampToValueAtTime(SILENT_GAIN_VALUE, audioCtx.currentTime + duration);
         osc.connect(gain).connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
@@ -378,8 +397,8 @@
         soundBtn.textContent = soundEnabled ? "🔊" : "🔇";
     }
 
-    function cloneRects(items) {
-        return items.map((item, index) => ({ ...item, id: item.id ?? `${index}` }));
+    function cloneItemsWithIds(items, type = "item") {
+        return items.map((item, index) => ({ ...item, id: item.id ?? `${type}-${index}` }));
     }
 
     // Ən az 3 səviyyə xəritəsi
@@ -404,6 +423,7 @@
                     { x: 620, y: groundY, w: 45, h: 40 },
                     { x: 1530, y: groundY, w: 45, h: 40 }
                 ],
+                // hidden=true olan sikkələr oyunçu yaxınlaşanda görünür
                 coins: [
                     { x: 380, y: groundY - 170, r: 11, collected: false },
                     { x: 760, y: groundY - 260, r: 11, collected: false, hidden: true },
@@ -438,6 +458,10 @@
                 name: "Səviyyə 2",
                 worldWidth: 3300,
                 spawn: { x: 120, y: groundY - 120 },
+                // moving platform xassələri:
+                // axis: hərəkət istiqaməti ("x" və ya "y")
+                // range: mərkəzdən maksimum məsafə
+                // speed: frame başına hərəkət sürəti
                 platforms: [
                     { id: "g2", x: 0, y: groundY, w: 3300, h: 50, type: "normal" },
                     { id: "s1", x: 320, y: groundY - 110, w: 180, h: 20, type: "ice" },
@@ -455,6 +479,7 @@
                     { x: 1720, y: groundY, w: 45, h: 40 },
                     { x: 2330, y: groundY, w: 45, h: 40 }
                 ],
+                // hidden=true olan sikkələr oyunçu yaxınlaşanda görünür
                 coins: [
                     { x: 390, y: groundY - 150, r: 11, collected: false },
                     { x: 700, y: groundY - 260, r: 11, collected: false, hidden: true },
@@ -492,6 +517,10 @@
                 name: "Səviyyə 3",
                 worldWidth: 3600,
                 spawn: { x: 120, y: groundY - 120 },
+                // moving platform xassələri:
+                // axis: hərəkət istiqaməti ("x" və ya "y")
+                // range: mərkəzdən maksimum məsafə
+                // speed: frame başına hərəkət sürəti
                 platforms: [
                     { id: "g3", x: 0, y: groundY, w: 3600, h: 50, type: "normal" },
                     { id: "t1", x: 260, y: groundY - 120, w: 140, h: 20, type: "breakable" },
@@ -517,6 +546,7 @@
                     { x: 2340, y: groundY, w: 45, h: 40 },
                     { x: 2660, y: groundY, w: 45, h: 40 }
                 ],
+                // hidden=true olan sikkələr oyunçu yaxınlaşanda görünür
                 coins: [
                     { x: 320, y: groundY - 160, r: 11, collected: false, hidden: true },
                     { x: 570, y: groundY - 290, r: 11, collected: false },
@@ -574,10 +604,14 @@
         }
     }
 
+    function sanitizeLeaderboardScores(rawScores) {
+        return rawScores.map(Number).filter((x) => Number.isFinite(x) && x >= 0);
+    }
+
     function loadLeaderboard() {
         try {
             const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
-            leaderboard = Array.isArray(parsed) ? parsed.map(Number).filter((x) => Number.isFinite(x)) : [];
+            leaderboard = Array.isArray(parsed) ? sanitizeLeaderboardScores(parsed) : [];
         } catch {
             leaderboard = [];
         }
@@ -613,8 +647,7 @@
         levelText.textContent = `${level ? level.name : "Səviyyə"}`;
         if (activePower) {
             const sec = Math.ceil(activePower.timer / 60);
-            const names = { star: "⭐ Ulduz", speed: "💨 Sürət", magnet: "🧲 Maqnit" };
-            powerText.textContent = `${names[activePower.type]}: ${sec}s`;
+            powerText.textContent = `${POWER_NAMES[activePower.type]}: ${sec}s`;
         } else {
             powerText.textContent = "";
         }
@@ -719,8 +752,8 @@
     function loadLevel(index) {
         currentLevelIndex = index;
         level = levels[currentLevelIndex];
-        platforms = cloneRects(level.platforms);
-        hazards = cloneRects(level.hazards);
+        platforms = cloneItemsWithIds(level.platforms, "platform");
+        hazards = cloneItemsWithIds(level.hazards, "hazard");
         coins = level.coins.map((coin) => ({ ...coin, visible: !coin.hidden }));
         enemies = level.enemies.map((enemy) => ({ ...enemy }));
         powerUps = level.powerUps.map((p) => ({ ...p }));
@@ -794,7 +827,15 @@
         for (let i = 0; i < count; i += 1) {
             const a = Math.random() * Math.PI * 2;
             const s = Math.random() * speed;
-            particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 0.5, life: 28 + Math.random() * 20, color, r: 2 + Math.random() * 2 });
+            particles.push({
+                x,
+                y,
+                vx: Math.cos(a) * s,
+                vy: Math.sin(a) * s - PARTICLE_LIFT,
+                life: PARTICLE_LIFE_MIN + Math.random() * PARTICLE_LIFE_RANGE,
+                color,
+                r: PARTICLE_RADIUS_MIN + Math.random() * PARTICLE_RADIUS_RANGE
+            });
         }
     }
 
@@ -848,11 +889,16 @@
     }
 
     function activatePower(type) {
-        const durations = { star: 300, speed: 240, magnet: 300 };
-        activePower = { type, timer: durations[type] || 240 };
+        const durationSeconds = POWER_DURATION_SECONDS[type] || 4;
+        activePower = { type, timer: Math.round(durationSeconds * FPS) };
         applyPlayerColor();
-        playSound(type === "star" ? 740 : type === "speed" ? 620 : 520, 0.2, "triangle", 0.1);
+        playSound(POWER_SOUND_FREQS[type] || 520, 0.2, "triangle", 0.1);
         updateHud();
+    }
+
+    function calculateMagnetPull(distance) {
+        // Distance azaldıqca pull kiçilir və (player - coin) / pull daha böyük olur
+        return Math.max(MAGNET_PULL_MIN, MAGNET_PULL_BASE - distance / MAGNET_PULL_DISTANCE_DIV);
     }
 
     function updatePlatforms() {
@@ -959,11 +1005,11 @@
             const distance = Math.hypot(dx, dy);
 
             // Gizli sikkələr oyunçu yaxınlaşanda görünür
-            if (coin.hidden && !coin.visible && distance < 170) coin.visible = true;
+            if (!coin.visible && distance < COIN_REVEAL_RADIUS) coin.visible = true;
 
             // Maqnit gücü zamanı sikkələr avtomatik çəkilir
-            if (activePower?.type === "magnet" && distance < 230) {
-                const pull = Math.max(1.2, 7 - distance / 35);
+            if (activePower?.type === "magnet" && distance < MAGNET_RADIUS) {
+                const pull = calculateMagnetPull(distance);
                 coin.x += (player.x - coin.x) / pull;
                 coin.y += (player.y - coin.y) / pull;
             }
@@ -1152,10 +1198,9 @@
     function drawPowerUps() {
         powerUps.forEach((p) => {
             if (p.collected) return;
-            const colors = { star: "#FFD54F", speed: "#42A5F5", magnet: "#AB47BC" };
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            ctx.fillStyle = colors[p.kind] || "#fff";
+            ctx.fillStyle = POWER_COLORS[p.kind] || "#fff";
             ctx.fill();
             ctx.strokeStyle = "#fff";
             ctx.lineWidth = 2;
@@ -1163,7 +1208,7 @@
 
             ctx.fillStyle = "#111";
             ctx.font = "bold 12px Arial";
-            const icon = p.kind === "star" ? "★" : p.kind === "speed" ? "⚡" : "🧲";
+            const icon = POWER_ICONS[p.kind] || "?";
             ctx.fillText(icon, p.x - 7, p.y + 4);
         });
     }
@@ -1231,7 +1276,7 @@
                 top = "#4FC3F7";
             }
 
-            const shakeX = p.type === "breakable" && p.breakTimer !== null && !p.broken ? (Math.random() - 0.5) * 3 : 0;
+            const shakeX = p.type === "breakable" && p.breakTimer !== null && !p.broken ? (Math.random() - 0.5) * BREAKABLE_PLATFORM_SHAKE : 0;
             ctx.fillStyle = base;
             ctx.fillRect(p.x + shakeX, p.y, p.w, p.h);
             ctx.fillStyle = top;
