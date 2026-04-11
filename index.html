@@ -169,6 +169,18 @@
     const restartBtn = document.getElementById("restartBtn");
 
     const HIGH_SCORE_KEY = "red_ball_high_score";
+    const FALL_DEATH_OFFSET = 280;
+    const LANDING_SQUASH_SPEED_THRESHOLD = 2;
+    const JUMP_STRETCH_SPEED_THRESHOLD = -2;
+    const SQUASH_LAND_X = 1.22;
+    const SQUASH_LAND_Y = 0.82;
+    const STRETCH_JUMP_X = 0.9;
+    const STRETCH_JUMP_Y = 1.14;
+    const STOMP_MIN_VELOCITY = 1;
+    const STOMP_POSITION_FACTOR = 0.2;
+    const LEVEL_TRANSITION_FRAMES = 80;
+    const CLOUD_PARALLAX_FACTOR = 0.25;
+    const MOUNTAIN_PARALLAX_FACTOR = 0.5;
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -395,7 +407,8 @@
 
     function updateHud() {
         scoreText.textContent = `Xal: ${score} | Rekord: ${highScore}`;
-        livesText.textContent = `Can: ${"❤️".repeat(Math.max(0, lives))}`;
+        const hearts = "❤️".repeat(Math.max(0, lives)) || "❌";
+        livesText.textContent = `Can: ${hearts}`;
         levelText.textContent = `${level ? level.name : "Səviyyə"}`;
     }
 
@@ -539,17 +552,17 @@
         player.x = Math.max(player.radius, Math.min(level.worldWidth - player.radius, player.x));
 
         // Boşluğa düşərsə can itir
-        if (player.y - player.radius > canvas.height + 280) {
+        if (player.y - player.radius > canvas.height + FALL_DEATH_OFFSET) {
             loseLife();
         }
 
         // Top üçün squash/stretch animasiyası
-        if (player.grounded && !player.prevGrounded && Math.abs(prevVy) > 2) {
-            player.squashX = 1.22;
-            player.squashY = 0.82;
-        } else if (!player.grounded && player.vy < -2) {
-            player.squashX = 0.9;
-            player.squashY = 1.14;
+        if (player.grounded && !player.prevGrounded && Math.abs(prevVy) > LANDING_SQUASH_SPEED_THRESHOLD) {
+            player.squashX = SQUASH_LAND_X;
+            player.squashY = SQUASH_LAND_Y;
+        } else if (!player.grounded && player.vy < JUMP_STRETCH_SPEED_THRESHOLD) {
+            player.squashX = STRETCH_JUMP_X;
+            player.squashY = STRETCH_JUMP_Y;
         }
         player.squashX += (1 - player.squashX) * 0.24;
         player.squashY += (1 - player.squashY) * 0.24;
@@ -599,7 +612,9 @@
             const distance = Math.hypot(dx, dy);
 
             if (distance <= player.radius + enemy.r) {
-                const stompFromTop = player.vy > 1 && player.y < enemy.y - enemy.r * 0.2;
+                const stompFromTop =
+                    player.vy > STOMP_MIN_VELOCITY &&
+                    player.y < enemy.y - enemy.r * STOMP_POSITION_FACTOR;
                 if (stompFromTop) {
                     enemy.alive = false;
                     player.vy = player.jumpPower * 0.62;
@@ -623,7 +638,7 @@
 
         if (insideDoor && state === GAME_STATE.PLAYING) {
             state = GAME_STATE.LEVEL_COMPLETE;
-            transitionTimer = 80;
+            transitionTimer = LEVEL_TRANSITION_FRAMES;
             showMessage("Level Complete!", `${level.name} bitdi`, false);
         }
     }
@@ -681,17 +696,15 @@
 
     function drawParallaxBackground() {
         // Arxa qat: buludlar (daha yavaş)
-        const cloudParallax = 0.25;
         level.clouds.forEach((cloud) => {
-            const x = cloud.x - cameraX * cloudParallax;
+            const x = cloud.x - cameraX * CLOUD_PARALLAX_FACTOR;
             drawCloud(x, cloud.y, cloud.r);
         });
 
         // Orta qat: dağlar (orta sürət)
-        const mountainParallax = 0.5;
         ctx.fillStyle = "rgba(96, 125, 139, 0.45)";
         level.mountains.forEach((mountain) => {
-            const x = mountain.x - cameraX * mountainParallax;
+            const x = mountain.x - cameraX * MOUNTAIN_PARALLAX_FACTOR;
             drawMountain(x, mountain.w, mountain.h);
         });
     }
