@@ -38,7 +38,71 @@
 
         .hud-right {
             text-align: right;
-            line-height: 1.4;
+            line-height: 1.35;
+        }
+
+        .hud.hidden {
+            display: none;
+        }
+
+        /* Sağ yuxarı utility düymələri */
+        .top-controls {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 45;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(0, 0, 0, 0.35);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .top-actions {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 35;
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .icon-btn {
+            border: none;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            font-size: 24px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .power-indicator {
+            position: fixed;
+            top: 62px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 35;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 999px;
+            padding: 7px 14px;
+            font-weight: bold;
+            text-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+            display: none;
         }
 
         .hud-controls {
@@ -207,7 +271,7 @@
             <div class="power-timer" id="powerText"></div>
         </div>
         <div class="hud-right">
-            <div id="livesText">❤️❤️❤️</div>
+            <div id="livesText">Can: ❤️❤️❤️</div>
             <div id="levelText">Səviyyə 1</div>
             <div class="hud-controls">
                 <button class="mini-btn" id="soundBtn">🔊</button>
@@ -239,6 +303,7 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
+    const hud = document.getElementById("hud");
     const scoreText = document.getElementById("scoreText");
     const livesText = document.getElementById("livesText");
     const levelText = document.getElementById("levelText");
@@ -265,6 +330,7 @@
         PAUSED: "paused",
         LEVEL_COMPLETE: "level_complete",
         GAME_OVER: "game_over",
+        LEVEL_COMPLETE: "level_complete",
         VICTORY: "victory"
     };
 
@@ -311,7 +377,9 @@
         gravity: 0.8,
         grounded: false,
         prevGrounded: false,
-        color: "#FF3D00",
+        onPlatform: null,
+        baseColor: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
+        color: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
         squashX: 1,
         squashY: 1,
         onIce: false,
@@ -329,9 +397,13 @@
     let powerUps = [];
     let exitDoor = null;
 
+    let particles = [];
+    let floatingTexts = [];
+
     let cameraX = 0;
     let score = 0;
     let highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
+    let leaderboard = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
     let lives = 3;
     let state = GAME_STATE.MENU;
     let activePower = null;
@@ -401,7 +473,11 @@
         return items.map((item, index) => ({ ...item, id: item.id ?? `${type}-${index}` }));
     }
 
-    // Ən az 3 səviyyə xəritəsi
+    function makePlatform(x, y, w, h, type = "normal", extra = {}) {
+        return { x, y, w, h, type, ...extra };
+    }
+
+    // 3 səviyyə: day / evening / night fonları ilə
     function buildLevels() {
         const groundY = canvas.height - 50;
 
@@ -440,18 +516,18 @@
                 ],
                 exitDoor: { x: 2550, y: groundY - 110, w: 70, h: 110 },
                 clouds: [
-                    { x: 150, y: 90, r: 30 },
-                    { x: 650, y: 130, r: 24 },
-                    { x: 1180, y: 100, r: 34 },
-                    { x: 1880, y: 120, r: 28 },
-                    { x: 2340, y: 90, r: 26 }
+                    { x: 120, y: 90, r: 30 },
+                    { x: 670, y: 130, r: 24 },
+                    { x: 1230, y: 100, r: 34 },
+                    { x: 1910, y: 120, r: 28 },
+                    { x: 2410, y: 90, r: 26 }
                 ],
                 mountains: [
                     { x: 100, w: 320, h: 130 },
                     { x: 500, w: 420, h: 180 },
-                    { x: 1000, w: 360, h: 150 },
-                    { x: 1520, w: 440, h: 190 },
-                    { x: 2140, w: 360, h: 140 }
+                    { x: 1020, w: 360, h: 150 },
+                    { x: 1600, w: 440, h: 190 },
+                    { x: 2200, w: 360, h: 140 }
                 ]
             },
             {
@@ -474,10 +550,9 @@
                     { id: "s8", x: 2520, y: groundY - 260, w: 220, h: 20, type: "ice" }
                 ],
                 hazards: [
-                    { x: 520, y: groundY, w: 45, h: 40 },
-                    { x: 1080, y: groundY, w: 45, h: 40 },
-                    { x: 1720, y: groundY, w: 45, h: 40 },
-                    { x: 2330, y: groundY, w: 45, h: 40 }
+                    { x: 560, y: groundY, w: 45, h: 40 },
+                    { x: 1250, y: groundY, w: 45, h: 40 },
+                    { x: 2020, y: groundY, w: 45, h: 40 }
                 ],
                 // hidden=true olan sikkələr oyunçu yaxınlaşanda görünür
                 coins: [
@@ -536,15 +611,15 @@
                     { id: "t11", x: 3160, y: groundY - 240, w: 170, h: 20, type: "normal" }
                 ],
                 hazards: [
-                    { x: 440, y: groundY, w: 45, h: 40 },
-                    { x: 670, y: groundY, w: 45, h: 40 },
-                    { x: 950, y: groundY, w: 45, h: 40 },
-                    { x: 1210, y: groundY, w: 45, h: 40 },
-                    { x: 1490, y: groundY, w: 45, h: 40 },
-                    { x: 1770, y: groundY, w: 45, h: 40 },
-                    { x: 2050, y: groundY, w: 45, h: 40 },
-                    { x: 2340, y: groundY, w: 45, h: 40 },
-                    { x: 2660, y: groundY, w: 45, h: 40 }
+                    { x: 500, y: groundY, w: 45, h: 40 },
+                    { x: 800, y: groundY, w: 45, h: 40 },
+                    { x: 1130, y: groundY, w: 45, h: 40 },
+                    { x: 1460, y: groundY, w: 45, h: 40 },
+                    { x: 1750, y: groundY, w: 45, h: 40 },
+                    { x: 2060, y: groundY, w: 45, h: 40 },
+                    { x: 2380, y: groundY, w: 45, h: 40 },
+                    { x: 2700, y: groundY, w: 45, h: 40 },
+                    { x: 3160, y: groundY, w: 45, h: 40 }
                 ],
                 // hidden=true olan sikkələr oyunçu yaxınlaşanda görünür
                 coins: [
@@ -602,6 +677,10 @@
             highScore = score;
             localStorage.setItem(HIGH_SCORE_KEY, String(highScore));
         }
+        musicOscillators.forEach((osc) => {
+            try { osc.stop(); } catch { /* oscillator artıq dayanmış ola bilər */ }
+        });
+        musicOscillators = [];
     }
 
     function sanitizeLeaderboardScores(rawScores) {
@@ -767,6 +846,7 @@
         player.vy = 0;
         player.grounded = false;
         player.prevGrounded = false;
+        player.onPlatform = null;
         player.squashX = 1;
         player.squashY = 1;
         player.standPlatformId = null;
@@ -774,6 +854,7 @@
         activePower = null;
         applyPlayerColor();
 
+        activePowerUp = null;
         cameraX = 0;
         updateHud();
     }
@@ -804,6 +885,7 @@
     function rebuildLevelAfterResize() {
         if (!canvas.width || !canvas.height) return;
 
+        const oldState = state;
         const oldScore = score;
         const oldLives = lives;
         const oldState = state;
@@ -860,6 +942,8 @@
         if (state !== GAME_STATE.PLAYING) return;
         if (activePower && activePower.type === "star") return;
 
+        playHitSound();
+        triggerDamageEffect();
         lives -= 1;
         triggerDamageFx();
         updateHud();
@@ -877,7 +961,22 @@
         player.vy = 0;
         player.grounded = false;
         player.prevGrounded = false;
+        player.onPlatform = null;
         cameraX = Math.max(0, player.x - canvas.width / 2);
+    }
+
+    function pauseGame() {
+        if (state !== GAME_STATE.PLAYING) return;
+        state = GAME_STATE.PAUSED;
+        showMessage("Dayandırıldı", "Oyun dayandırıldı", "Davam et", () => {
+            resumeGame();
+        });
+    }
+
+    function resumeGame() {
+        if (state !== GAME_STATE.PAUSED) return;
+        state = GAME_STATE.PLAYING;
+        hideMessage();
     }
 
     function checkAABBCircle(cx, cy, cr, rect) {
@@ -944,9 +1043,10 @@
         const prevVy = player.vy;
         const prevBottom = player.y + player.radius;
 
-        player.vy += player.gravity;
-        player.x += player.vx;
-        player.y += player.vy;
+        const deltaFactor = deltaMs / 16.67;
+        player.vy += player.gravity * deltaFactor;
+        player.x += player.vx * deltaFactor;
+        player.y += player.vy * deltaFactor;
 
         player.grounded = false;
         player.onIce = false;
@@ -959,7 +1059,6 @@
 
             if (inHorizontalRange && prevBottom <= p.y && currentBottom >= p.y) {
                 player.y = p.y - player.radius;
-                player.vy = 0;
                 player.grounded = true;
                 player.standPlatformId = p.id;
 
@@ -994,6 +1093,13 @@
         player.squashX += (1 - player.squashX) * 0.24;
         player.squashY += (1 - player.squashY) * 0.24;
         player.prevGrounded = player.grounded;
+    }
+
+    function updatePowerTimers() {
+        powerState.star = Math.max(0, powerState.star - 1);
+        powerState.speed = Math.max(0, powerState.speed - 1);
+        powerState.magnet = Math.max(0, powerState.magnet - 1);
+        refreshPowerColorAndUi();
     }
 
     function updateCoins() {
@@ -1045,6 +1151,8 @@
     }
 
     function updateHazards() {
+        if (isInvincible()) return;
+
         for (const hazard of hazards) {
             const hazardRect = { x: hazard.x, y: hazard.y - hazard.h, w: hazard.w, h: hazard.h };
             if (checkAABBCircle(player.x, player.y, player.radius, hazardRect)) {
@@ -1118,13 +1226,46 @@
         if (redFlash > 0) redFlash -= 1;
     }
 
-    function update() {
-        if (state === GAME_STATE.PLAYING) {
-            if (inputs.jump && player.grounded) {
+    function updateEffects(deltaMs) {
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+            const p = particles[i];
+            p.x += p.vx * (deltaMs / 16.67);
+            p.y += p.vy * (deltaMs / 16.67);
+            p.vy += 0.03 * (deltaMs / 16.67);
+            p.life -= deltaMs / 16.67;
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            }
+        }
+
+        for (let i = floatingTexts.length - 1; i >= 0; i -= 1) {
+            const t = floatingTexts[i];
+            t.y += t.vy * (deltaMs / 16.67);
+            t.alpha -= 0.018 * (deltaMs / 16.67);
+            if (t.alpha <= 0) {
+                floatingTexts.splice(i, 1);
+            }
+        }
+
+        if (screenShakeTime > 0) {
+            screenShakeTime -= deltaMs;
+        }
+        if (damageFlash > 0) {
+            damageFlash -= deltaMs / 360;
+        }
+    }
+
+    function handleJumpInput() {
+        if (inputs.jump) {
+            if (!jumpConsumed && player.grounded) {
                 player.vy = player.jumpPower;
                 player.grounded = false;
                 playSound(260, 0.12, "square", 0.08);
             }
+        } else {
+            jumpConsumed = false;
+        }
+    }
 
             updatePlayerPhysics();
             updateCoins();
@@ -1158,6 +1299,12 @@
         ctx.lineTo(x + width, baseY);
         ctx.closePath();
         ctx.fill();
+    }
+
+    function currentTheme() {
+        if (!level) return LEVEL_THEMES[0];
+        const i = Math.min(LEVEL_THEMES.length - 1, currentLevelIndex);
+        return LEVEL_THEMES[i];
     }
 
     function drawParallaxBackground() {
@@ -1282,9 +1429,21 @@
             ctx.fillStyle = top;
             ctx.fillRect(p.x + shakeX, p.y, p.w, 5);
         });
+
+        ctx.globalAlpha = 1;
+        ctx.font = "bold 18px Arial";
+        ctx.textAlign = "center";
+        floatingTexts.forEach((t) => {
+            ctx.globalAlpha = Math.max(0, t.alpha);
+            ctx.fillStyle = "#FFEB3B";
+            ctx.fillText(t.text, t.x, t.y);
+        });
+        ctx.globalAlpha = 1;
     }
 
     function drawPlayer() {
+        player.color = getPlayerColor();
+
         ctx.save();
         ctx.translate(player.x, player.y);
         ctx.scale(player.squashX, player.squashY);
@@ -1372,7 +1531,10 @@
         const el = document.getElementById(id);
         const start = (e) => {
             e.preventDefault();
+            ensureAudio();
             inputs[key] = true;
+            initAudio();
+            if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
         };
         const end = (e) => {
             e.preventDefault();
@@ -1382,13 +1544,17 @@
         el.addEventListener("touchstart", start, { passive: false });
         el.addEventListener("touchend", end, { passive: false });
         el.addEventListener("touchcancel", end, { passive: false });
+
+        el.addEventListener("mousedown", start);
+        el.addEventListener("mouseup", end);
+        el.addEventListener("mouseleave", end);
     };
 
     setupInput("leftBtn", "left");
     setupInput("rightBtn", "right");
     setupInput("jumpBtn", "jump");
 
-    // Klaviatura kontrolları
+    // Klaviatura kontrolları (mövcud sxem saxlanılır)
     window.addEventListener("keydown", (e) => {
         if (["ArrowLeft", "ArrowRight", "ArrowUp", "Space", "KeyP"].includes(e.code)) e.preventDefault();
         if (e.code === "ArrowLeft") inputs.left = true;
@@ -1417,6 +1583,8 @@
         updateSoundButton();
         toggleMusic();
     });
+
+    window.addEventListener("beforeunload", stopAudio);
 
     // İlkin yükləmə
     updateSoundButton();
