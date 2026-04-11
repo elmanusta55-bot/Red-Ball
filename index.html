@@ -9,7 +9,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #87CEEB; /* Göy üzü rəngi */
+            background-color: #87CEEB;
             font-family: Arial, sans-serif;
             user-select: none;
         }
@@ -19,7 +19,29 @@
             background: linear-gradient(#87CEEB, #E0F7FA);
         }
 
-        /* Planşet Kontrolları */
+        /* Yuxarı HUD (xal, rekord, can, səviyyə) */
+        .hud {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            font-size: 20px;
+        }
+
+        .hud-right {
+            text-align: right;
+            line-height: 1.4;
+        }
+
+        /* Planşet kontrolları */
         .ui-overlay {
             position: fixed;
             bottom: 20px;
@@ -28,6 +50,7 @@
             display: flex;
             justify-content: space-between;
             pointer-events: none;
+            z-index: 30;
         }
 
         .move-btns {
@@ -64,11 +87,64 @@
             height: 90px;
             background: rgba(255, 0, 0, 0.4);
         }
+
+        /* Game over / level complete ekranı */
+        .message-screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.45);
+            color: #fff;
+            z-index: 40;
+            text-align: center;
+        }
+
+        .message-screen.hidden {
+            display: none;
+        }
+
+        .message-title {
+            font-size: 52px;
+            margin: 0 0 12px;
+            text-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .message-subtitle {
+            margin: 0 0 20px;
+            font-size: 22px;
+        }
+
+        .restart-btn {
+            font-size: 22px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background: #ff3d00;
+            color: #fff;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
     <canvas id="gameCanvas"></canvas>
+
+    <div class="hud" id="hud">
+        <div id="scoreText">Xal: 0 | Rekord: 0</div>
+        <div class="hud-right">
+            <div id="livesText">❤️❤️❤️</div>
+            <div id="levelText">Səviyyə 1</div>
+        </div>
+    </div>
+
+    <div class="message-screen hidden" id="messageScreen">
+        <h1 class="message-title" id="messageTitle">Game Over</h1>
+        <p class="message-subtitle" id="messageSubtitle">Yenidən cəhd et!</p>
+        <button class="restart-btn" id="restartBtn">Yenidən Başla</button>
+    </div>
 
     <div class="ui-overlay">
         <div class="move-btns">
@@ -84,15 +160,33 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
+    const scoreText = document.getElementById("scoreText");
+    const livesText = document.getElementById("livesText");
+    const levelText = document.getElementById("levelText");
+    const messageScreen = document.getElementById("messageScreen");
+    const messageTitle = document.getElementById("messageTitle");
+    const messageSubtitle = document.getElementById("messageSubtitle");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const HIGH_SCORE_KEY = "red_ball_high_score";
+
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        rebuildLevelAfterResize();
     }
-    window.addEventListener('resize', resize);
-    resize();
+    window.addEventListener("resize", resize);
 
-    // Oyun obyektləri
-    let player = {
+    // Oyun vəziyyətləri
+    const GAME_STATE = {
+        PLAYING: "playing",
+        LEVEL_COMPLETE: "level_complete",
+        GAME_OVER: "game_over",
+        VICTORY: "victory"
+    };
+
+    // Oyunçu obyekti
+    const player = {
         x: 100,
         y: 100,
         radius: 20,
@@ -102,149 +196,664 @@
         jumpPower: -15,
         gravity: 0.8,
         grounded: false,
-        color: "#FF3D00"
+        prevGrounded: false,
+        color: "#FF3D00",
+        squashX: 1,
+        squashY: 1
     };
 
-    let platforms = [
-        { x: 0, y: canvas.height - 50, w: 2000, h: 50 }, // Yer
-        { x: 300, y: canvas.height - 150, w: 150, h: 20 },
-        { x: 550, y: canvas.height - 250, w: 150, h: 20 },
-        { x: 800, y: canvas.height - 180, w: 200, h: 20 }
-    ];
+    let levels = [];
+    let currentLevelIndex = 0;
+    let level = null;
 
-    let hazards = [
-        { x: 450, y: canvas.height - 50, w: 40, h: 40 } // Tikan
-    ];
+    let platforms = [];
+    let hazards = [];
+    let coins = [];
+    let enemies = [];
+    let exitDoor = null;
 
     let cameraX = 0;
-    let inputs = { left: false, right: false, jump: false };
+    let score = 0;
+    let highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
+    let lives = 3;
+    let state = GAME_STATE.PLAYING;
+    let transitionTimer = 0;
 
-    // Kontrolları sazla (Planşet)
-    const setupInput = (id, key) => {
-        const el = document.getElementById(id);
-        el.addEventListener('touchstart', (e) => { e.preventDefault(); inputs[key] = true; });
-        el.addEventListener('touchend', (e) => { e.preventDefault(); inputs[key] = false; });
-    };
+    const inputs = { left: false, right: false, jump: false };
 
-    setupInput('leftBtn', 'left');
-    setupInput('rightBtn', 'right');
-    setupInput('jumpBtn', 'jump');
+    function cloneRects(items) {
+        return items.map((item) => ({ ...item }));
+    }
 
-    // Klaviatura dəstəyi (PC üçün də olsun)
-    window.addEventListener('keydown', e => {
-        if(e.code === 'ArrowLeft') inputs.left = true;
-        if(e.code === 'ArrowRight') inputs.right = true;
-        if(e.code === 'Space' || e.code === 'ArrowUp') inputs.jump = true;
-    });
-    window.addEventListener('keyup', e => {
-        if(e.code === 'ArrowLeft') inputs.left = false;
-        if(e.code === 'ArrowRight') inputs.right = false;
-        if(e.code === 'Space' || e.code === 'ArrowUp') inputs.jump = false;
-    });
+    // Ən az 3 səviyyə xəritəsi
+    function buildLevels() {
+        const groundY = canvas.height - 50;
 
-    function update() {
-        // Hərəkət
+        return [
+            {
+                name: "Səviyyə 1",
+                spawn: { x: 120, y: groundY - 120 },
+                worldWidth: 2600,
+                platforms: [
+                    { x: 0, y: groundY, w: 2600, h: 50 },
+                    { x: 350, y: groundY - 130, w: 280, h: 20 },
+                    { x: 760, y: groundY - 220, w: 260, h: 20 },
+                    { x: 1160, y: groundY - 170, w: 320, h: 20 },
+                    { x: 1640, y: groundY - 250, w: 260, h: 20 }
+                ],
+                hazards: [
+                    { x: 660, y: groundY, w: 45, h: 40 },
+                    { x: 1540, y: groundY, w: 45, h: 40 }
+                ],
+                coins: [
+                    { x: 430, y: groundY - 170, r: 11, collected: false },
+                    { x: 830, y: groundY - 260, r: 11, collected: false },
+                    { x: 1290, y: groundY - 210, r: 11, collected: false },
+                    { x: 1730, y: groundY - 290, r: 11, collected: false }
+                ],
+                enemies: [
+                    { x: 930, y: groundY - 245, r: 18, vx: 1.6, minX: 780, maxX: 1000, alive: true }
+                ],
+                exitDoor: { x: 2380, y: groundY - 110, w: 70, h: 110 },
+                clouds: [
+                    { x: 150, y: 90, r: 30 },
+                    { x: 650, y: 130, r: 24 },
+                    { x: 1180, y: 100, r: 34 },
+                    { x: 1880, y: 120, r: 28 },
+                    { x: 2340, y: 90, r: 26 }
+                ],
+                mountains: [
+                    { x: 100, w: 320, h: 130 },
+                    { x: 500, w: 420, h: 180 },
+                    { x: 1000, w: 360, h: 150 },
+                    { x: 1520, w: 440, h: 190 },
+                    { x: 2140, w: 360, h: 140 }
+                ]
+            },
+            {
+                name: "Səviyyə 2",
+                spawn: { x: 120, y: groundY - 120 },
+                worldWidth: 3200,
+                platforms: [
+                    { x: 0, y: groundY, w: 3200, h: 50 },
+                    { x: 320, y: groundY - 110, w: 180, h: 20 },
+                    { x: 620, y: groundY - 210, w: 170, h: 20 },
+                    { x: 900, y: groundY - 120, w: 150, h: 20 },
+                    { x: 1200, y: groundY - 230, w: 160, h: 20 },
+                    { x: 1510, y: groundY - 140, w: 170, h: 20 },
+                    { x: 1830, y: groundY - 250, w: 170, h: 20 },
+                    { x: 2150, y: groundY - 150, w: 150, h: 20 },
+                    { x: 2470, y: groundY - 270, w: 210, h: 20 }
+                ],
+                hazards: [
+                    { x: 520, y: groundY, w: 45, h: 40 },
+                    { x: 1080, y: groundY, w: 45, h: 40 },
+                    { x: 1720, y: groundY, w: 45, h: 40 },
+                    { x: 2330, y: groundY, w: 45, h: 40 }
+                ],
+                coins: [
+                    { x: 390, y: groundY - 150, r: 11, collected: false },
+                    { x: 690, y: groundY - 250, r: 11, collected: false },
+                    { x: 1280, y: groundY - 270, r: 11, collected: false },
+                    { x: 1900, y: groundY - 290, r: 11, collected: false },
+                    { x: 2560, y: groundY - 310, r: 11, collected: false }
+                ],
+                enemies: [
+                    { x: 975, y: groundY - 155, r: 18, vx: 2, minX: 910, maxX: 1040, alive: true },
+                    { x: 1880, y: groundY - 285, r: 18, vx: 1.8, minX: 1840, maxX: 1990, alive: true }
+                ],
+                exitDoor: { x: 2960, y: groundY - 110, w: 70, h: 110 },
+                clouds: [
+                    { x: 80, y: 80, r: 26 },
+                    { x: 560, y: 110, r: 30 },
+                    { x: 1120, y: 95, r: 24 },
+                    { x: 1640, y: 115, r: 35 },
+                    { x: 2220, y: 90, r: 28 },
+                    { x: 2860, y: 120, r: 25 }
+                ],
+                mountains: [
+                    { x: 0, w: 280, h: 100 },
+                    { x: 370, w: 420, h: 170 },
+                    { x: 900, w: 320, h: 125 },
+                    { x: 1400, w: 430, h: 190 },
+                    { x: 1990, w: 320, h: 130 },
+                    { x: 2520, w: 450, h: 195 }
+                ]
+            },
+            {
+                name: "Səviyyə 3",
+                spawn: { x: 120, y: groundY - 120 },
+                worldWidth: 3600,
+                platforms: [
+                    { x: 0, y: groundY, w: 3600, h: 50 },
+                    { x: 260, y: groundY - 120, w: 140, h: 20 },
+                    { x: 510, y: groundY - 250, w: 130, h: 20 },
+                    { x: 760, y: groundY - 140, w: 140, h: 20 },
+                    { x: 1030, y: groundY - 280, w: 130, h: 20 },
+                    { x: 1280, y: groundY - 170, w: 130, h: 20 },
+                    { x: 1560, y: groundY - 300, w: 130, h: 20 },
+                    { x: 1830, y: groundY - 180, w: 140, h: 20 },
+                    { x: 2120, y: groundY - 320, w: 130, h: 20 },
+                    { x: 2410, y: groundY - 200, w: 130, h: 20 },
+                    { x: 2730, y: groundY - 340, w: 150, h: 20 },
+                    { x: 3070, y: groundY - 220, w: 170, h: 20 }
+                ],
+                hazards: [
+                    { x: 440, y: groundY, w: 45, h: 40 },
+                    { x: 670, y: groundY, w: 45, h: 40 },
+                    { x: 950, y: groundY, w: 45, h: 40 },
+                    { x: 1210, y: groundY, w: 45, h: 40 },
+                    { x: 1490, y: groundY, w: 45, h: 40 },
+                    { x: 1770, y: groundY, w: 45, h: 40 },
+                    { x: 2050, y: groundY, w: 45, h: 40 },
+                    { x: 2340, y: groundY, w: 45, h: 40 },
+                    { x: 2660, y: groundY, w: 45, h: 40 }
+                ],
+                coins: [
+                    { x: 320, y: groundY - 160, r: 11, collected: false },
+                    { x: 570, y: groundY - 290, r: 11, collected: false },
+                    { x: 1080, y: groundY - 320, r: 11, collected: false },
+                    { x: 1610, y: groundY - 340, r: 11, collected: false },
+                    { x: 2170, y: groundY - 360, r: 11, collected: false },
+                    { x: 2780, y: groundY - 380, r: 11, collected: false },
+                    { x: 3140, y: groundY - 260, r: 11, collected: false }
+                ],
+                enemies: [
+                    { x: 820, y: groundY - 175, r: 18, vx: 2.4, minX: 770, maxX: 890, alive: true },
+                    { x: 1320, y: groundY - 205, r: 18, vx: 2.1, minX: 1290, maxX: 1390, alive: true },
+                    { x: 1890, y: groundY - 215, r: 18, vx: 2.3, minX: 1840, maxX: 1960, alive: true },
+                    { x: 2460, y: groundY - 235, r: 18, vx: 2.5, minX: 2420, maxX: 2520, alive: true }
+                ],
+                exitDoor: { x: 3380, y: groundY - 110, w: 80, h: 110 },
+                clouds: [
+                    { x: 110, y: 80, r: 25 },
+                    { x: 700, y: 110, r: 34 },
+                    { x: 1290, y: 90, r: 23 },
+                    { x: 1850, y: 120, r: 31 },
+                    { x: 2550, y: 95, r: 28 },
+                    { x: 3220, y: 110, r: 27 }
+                ],
+                mountains: [
+                    { x: 40, w: 250, h: 90 },
+                    { x: 360, w: 380, h: 150 },
+                    { x: 870, w: 280, h: 120 },
+                    { x: 1300, w: 430, h: 185 },
+                    { x: 1860, w: 300, h: 125 },
+                    { x: 2300, w: 420, h: 180 },
+                    { x: 2920, w: 420, h: 175 }
+                ]
+            }
+        ];
+    }
+
+    function updateHighScore() {
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem(HIGH_SCORE_KEY, String(highScore));
+        }
+    }
+
+    function updateHud() {
+        scoreText.textContent = `Xal: ${score} | Rekord: ${highScore}`;
+        livesText.textContent = `Can: ${"❤️".repeat(Math.max(0, lives))}`;
+        levelText.textContent = `${level ? level.name : "Səviyyə"}`;
+    }
+
+    function showMessage(title, subtitle, showRestart) {
+        messageTitle.textContent = title;
+        messageSubtitle.textContent = subtitle;
+        restartBtn.style.display = showRestart ? "inline-block" : "none";
+        messageScreen.classList.remove("hidden");
+    }
+
+    function hideMessage() {
+        messageScreen.classList.add("hidden");
+    }
+
+    // Səviyyəni yüklə
+    function loadLevel(index) {
+        currentLevelIndex = index;
+        level = levels[currentLevelIndex];
+        platforms = cloneRects(level.platforms);
+        hazards = cloneRects(level.hazards);
+        coins = level.coins.map((coin) => ({ ...coin }));
+        enemies = level.enemies.map((enemy) => ({ ...enemy }));
+        exitDoor = { ...level.exitDoor };
+
+        player.x = level.spawn.x;
+        player.y = level.spawn.y;
+        player.vx = 0;
+        player.vy = 0;
+        player.grounded = false;
+        player.prevGrounded = false;
+        player.squashX = 1;
+        player.squashY = 1;
+
+        cameraX = 0;
+        transitionTimer = 0;
+        state = GAME_STATE.PLAYING;
+        hideMessage();
+        updateHud();
+    }
+
+    function startGame() {
+        score = 0;
+        lives = 3;
+        levels = buildLevels();
+        loadLevel(0);
+    }
+
+    function rebuildLevelAfterResize() {
+        if (!canvas.width || !canvas.height) {
+            return;
+        }
+
+        const oldScore = score;
+        const oldLives = lives;
+        const oldIndex = currentLevelIndex;
+        const oldState = state;
+
+        levels = buildLevels();
+        score = oldScore;
+        lives = oldLives;
+
+        if (oldState === GAME_STATE.GAME_OVER || oldState === GAME_STATE.VICTORY) {
+            loadLevel(Math.min(oldIndex, levels.length - 1));
+            state = oldState;
+            if (oldState === GAME_STATE.GAME_OVER) {
+                showMessage("Game Over", "Canlar bitdi", true);
+            } else {
+                showMessage("Təbriklər!", "Bütün səviyyələr bitdi", true);
+            }
+        } else {
+            loadLevel(Math.min(oldIndex, levels.length - 1));
+        }
+
+        updateHud();
+    }
+
+    function addScore(points) {
+        score += points;
+        updateHighScore();
+        updateHud();
+    }
+
+    function loseLife() {
+        if (state !== GAME_STATE.PLAYING) {
+            return;
+        }
+
+        lives -= 1;
+        updateHud();
+
+        if (lives <= 0) {
+            state = GAME_STATE.GAME_OVER;
+            showMessage("Game Over", "Canlar bitdi", true);
+            return;
+        }
+
+        // Can qaldıqda eyni səviyyənin başlanğıcına qaytar
+        player.x = level.spawn.x;
+        player.y = level.spawn.y;
+        player.vx = 0;
+        player.vy = 0;
+        player.grounded = false;
+        player.prevGrounded = false;
+        cameraX = Math.max(0, player.x - canvas.width / 2);
+    }
+
+    function checkAABBCircle(cx, cy, cr, rect) {
+        const nearestX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
+        const nearestY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
+        const dx = cx - nearestX;
+        const dy = cy - nearestY;
+        return dx * dx + dy * dy <= cr * cr;
+    }
+
+    function updatePlayerPhysics() {
         if (inputs.left) player.vx = -player.speed;
         else if (inputs.right) player.vx = player.speed;
-        else player.vx *= 0.8; // Sürtünmə
+        else player.vx *= 0.82;
 
-        // Fizika
+        const prevVy = player.vy;
+        const prevBottom = player.y + player.radius;
+
         player.vy += player.gravity;
         player.x += player.vx;
         player.y += player.vy;
 
         player.grounded = false;
 
-        // Platforma toqquşması
-        platforms.forEach(p => {
-            if (player.x + player.radius > p.x && player.x - player.radius < p.x + p.w &&
-                player.y + player.radius > p.y && player.y - player.radius < p.y + p.h) {
-                
-                if (player.vy > 0 && player.y < p.y + p.h) { // Üstdən dəyirsə
-                    player.y = p.y - player.radius;
-                    player.vy = 0;
-                    player.grounded = true;
-                }
+        // Platforma üst səth toqquşması
+        platforms.forEach((p) => {
+            const inHorizontalRange = player.x + player.radius > p.x && player.x - player.radius < p.x + p.w;
+            const currentBottom = player.y + player.radius;
+            if (inHorizontalRange && prevBottom <= p.y && currentBottom >= p.y) {
+                player.y = p.y - player.radius;
+                player.vy = 0;
+                player.grounded = true;
             }
         });
 
-        // Tikan toqquşması (Ölüm)
-        hazards.forEach(h => {
-            if (player.x + player.radius > h.x && player.x - player.radius < h.x + h.w &&
-                player.y + player.radius > h.y) {
-                resetGame();
-            }
-        });
+        // Dünya sərhədləri
+        player.x = Math.max(player.radius, Math.min(level.worldWidth - player.radius, player.x));
 
-        // Tullanmaq
-        if (inputs.jump && player.grounded) {
-            player.vy = player.jumpPower;
-            player.grounded = false;
+        // Boşluğa düşərsə can itir
+        if (player.y - player.radius > canvas.height + 280) {
+            loseLife();
         }
 
-        // Kamera izləməsi
-        cameraX = player.x - canvas.width / 2;
+        // Top üçün squash/stretch animasiyası
+        if (player.grounded && !player.prevGrounded && Math.abs(prevVy) > 2) {
+            player.squashX = 1.22;
+            player.squashY = 0.82;
+        } else if (!player.grounded && player.vy < -2) {
+            player.squashX = 0.9;
+            player.squashY = 1.14;
+        }
+        player.squashX += (1 - player.squashX) * 0.24;
+        player.squashY += (1 - player.squashY) * 0.24;
+        player.prevGrounded = player.grounded;
+    }
+
+    function updateCoins() {
+        coins.forEach((coin) => {
+            if (coin.collected) return;
+            const dx = player.x - coin.x;
+            const dy = player.y - coin.y;
+            const distSq = dx * dx + dy * dy;
+            const r = player.radius + coin.r;
+            if (distSq <= r * r) {
+                coin.collected = true;
+                addScore(10);
+            }
+        });
+    }
+
+    function updateHazards() {
+        for (const hazard of hazards) {
+            const hazardRect = {
+                x: hazard.x,
+                y: hazard.y - hazard.h,
+                w: hazard.w,
+                h: hazard.h
+            };
+            if (checkAABBCircle(player.x, player.y, player.radius, hazardRect)) {
+                loseLife();
+                break;
+            }
+        }
+    }
+
+    function updateEnemies() {
+        for (const enemy of enemies) {
+            if (!enemy.alive) continue;
+
+            enemy.x += enemy.vx;
+            if (enemy.x - enemy.r <= enemy.minX || enemy.x + enemy.r >= enemy.maxX) {
+                enemy.vx *= -1;
+            }
+
+            const dx = player.x - enemy.x;
+            const dy = player.y - enemy.y;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance <= player.radius + enemy.r) {
+                const stompFromTop = player.vy > 1 && player.y < enemy.y - enemy.r * 0.2;
+                if (stompFromTop) {
+                    enemy.alive = false;
+                    player.vy = player.jumpPower * 0.62;
+                    addScore(25);
+                } else {
+                    loseLife();
+                    break;
+                }
+            }
+        }
+    }
+
+    function updateExitDoor() {
+        if (!exitDoor) return;
+
+        const insideDoor =
+            player.x + player.radius > exitDoor.x &&
+            player.x - player.radius < exitDoor.x + exitDoor.w &&
+            player.y + player.radius > exitDoor.y &&
+            player.y - player.radius < exitDoor.y + exitDoor.h;
+
+        if (insideDoor && state === GAME_STATE.PLAYING) {
+            state = GAME_STATE.LEVEL_COMPLETE;
+            transitionTimer = 80;
+            showMessage("Level Complete!", `${level.name} bitdi`, false);
+        }
+    }
+
+    function update() {
+        if (state === GAME_STATE.PLAYING) {
+            if (inputs.jump && player.grounded) {
+                player.vy = player.jumpPower;
+                player.grounded = false;
+            }
+
+            updatePlayerPhysics();
+            updateCoins();
+            updateHazards();
+            updateEnemies();
+            updateExitDoor();
+
+            cameraX = Math.max(0, Math.min(level.worldWidth - canvas.width, player.x - canvas.width / 2));
+        } else if (state === GAME_STATE.LEVEL_COMPLETE) {
+            transitionTimer -= 1;
+            if (transitionTimer <= 0) {
+                if (currentLevelIndex < levels.length - 1) {
+                    loadLevel(currentLevelIndex + 1);
+                } else {
+                    state = GAME_STATE.VICTORY;
+                    showMessage("Təbriklər!", "Bütün səviyyələr tamamlandı", true);
+                }
+            }
+        }
 
         draw();
         requestAnimationFrame(update);
     }
 
-    function resetGame() {
-        player.x = 100;
-        player.y = 100;
-        player.vx = 0;
-        player.vy = 0;
+    // Paralaks buludlar
+    function drawCloud(cloudX, cloudY, radius) {
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.beginPath();
+        ctx.arc(cloudX, cloudY, radius, 0, Math.PI * 2);
+        ctx.arc(cloudX + radius * 0.9, cloudY + 2, radius * 0.8, 0, Math.PI * 2);
+        ctx.arc(cloudX - radius * 0.9, cloudY + 4, radius * 0.72, 0, Math.PI * 2);
+        ctx.fill();
     }
 
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Paralaks dağlar
+    function drawMountain(x, width, height) {
+        const baseY = canvas.height - 50;
+        ctx.beginPath();
+        ctx.moveTo(x, baseY);
+        ctx.lineTo(x + width / 2, baseY - height);
+        ctx.lineTo(x + width, baseY);
+        ctx.closePath();
+        ctx.fill();
+    }
 
-        ctx.save();
-        ctx.translate(-cameraX, 0); // Kamera effekti
-
-        // Platformaları çək
-        ctx.fillStyle = "#4CAF50";
-        platforms.forEach(p => {
-            ctx.fillRect(p.x, p.y, p.w, p.h);
-            // Ot effekti
-            ctx.fillStyle = "#388E3C";
-            ctx.fillRect(p.x, p.y, p.w, 5);
-            ctx.fillStyle = "#4CAF50";
+    function drawParallaxBackground() {
+        // Arxa qat: buludlar (daha yavaş)
+        const cloudParallax = 0.25;
+        level.clouds.forEach((cloud) => {
+            const x = cloud.x - cameraX * cloudParallax;
+            drawCloud(x, cloud.y, cloud.r);
         });
 
-        // Tikanları çək
+        // Orta qat: dağlar (orta sürət)
+        const mountainParallax = 0.5;
+        ctx.fillStyle = "rgba(96, 125, 139, 0.45)";
+        level.mountains.forEach((mountain) => {
+            const x = mountain.x - cameraX * mountainParallax;
+            drawMountain(x, mountain.w, mountain.h);
+        });
+    }
+
+    function drawCoins() {
+        coins.forEach((coin) => {
+            if (coin.collected) return;
+            ctx.beginPath();
+            ctx.arc(coin.x, coin.y, coin.r, 0, Math.PI * 2);
+            ctx.fillStyle = "#FFD700";
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "#B8860B";
+            ctx.stroke();
+        });
+    }
+
+    function drawHazards() {
         ctx.fillStyle = "#37474F";
-        hazards.forEach(h => {
+        hazards.forEach((h) => {
             ctx.beginPath();
             ctx.moveTo(h.x, h.y);
             ctx.lineTo(h.x + h.w / 2, h.y - h.h);
             ctx.lineTo(h.x + h.w, h.y);
             ctx.fill();
         });
+    }
 
-        // Red Ball-u çək
+    function drawEnemies() {
+        enemies.forEach((enemy) => {
+            if (!enemy.alive) return;
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, enemy.r, 0, Math.PI * 2);
+            ctx.fillStyle = "#111";
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "#333";
+            ctx.stroke();
+        });
+    }
+
+    function drawDoor() {
+        if (!exitDoor) return;
+        ctx.fillStyle = "#00BCD4";
+        ctx.fillRect(exitDoor.x, exitDoor.y, exitDoor.w, exitDoor.h);
+        ctx.fillStyle = "#B2EBF2";
+        ctx.fillRect(exitDoor.x + 8, exitDoor.y + 8, exitDoor.w - 16, exitDoor.h - 16);
+
+        // Bayraq
+        ctx.fillStyle = "#795548";
+        ctx.fillRect(exitDoor.x + exitDoor.w + 10, exitDoor.y - 70, 6, 70);
+        ctx.fillStyle = "#FFEB3B";
         ctx.beginPath();
-        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+        ctx.moveTo(exitDoor.x + exitDoor.w + 16, exitDoor.y - 70);
+        ctx.lineTo(exitDoor.x + exitDoor.w + 55, exitDoor.y - 52);
+        ctx.lineTo(exitDoor.x + exitDoor.w + 16, exitDoor.y - 35);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function drawPlatforms() {
+        platforms.forEach((p) => {
+            ctx.fillStyle = "#4CAF50";
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+            ctx.fillStyle = "#388E3C";
+            ctx.fillRect(p.x, p.y, p.w, 5);
+        });
+    }
+
+    function drawPlayer() {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        // Top üçün squash & stretch effekti
+        ctx.scale(player.squashX, player.squashY);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
         ctx.fillStyle = player.color;
         ctx.fill();
         ctx.strokeStyle = "black";
         ctx.lineWidth = 2;
         ctx.stroke();
-        ctx.closePath();
 
         // Gözlər
         ctx.fillStyle = "white";
         ctx.beginPath();
-        ctx.arc(player.x + 8, player.y - 5, 5, 0, Math.PI * 2);
+        ctx.arc(8, -5, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "black";
         ctx.beginPath();
-        ctx.arc(player.x + 10, player.y - 5, 2, 0, Math.PI * 2);
+        ctx.arc(10, -5, 2, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
     }
 
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawParallaxBackground();
+
+        ctx.save();
+        ctx.translate(-cameraX, 0);
+
+        drawPlatforms();
+        drawHazards();
+        drawCoins();
+        drawEnemies();
+        drawDoor();
+        drawPlayer();
+
+        ctx.restore();
+    }
+
+    // Touch kontrolları
+    const setupInput = (id, key) => {
+        const el = document.getElementById(id);
+        const start = (e) => {
+            e.preventDefault();
+            inputs[key] = true;
+        };
+        const end = (e) => {
+            e.preventDefault();
+            inputs[key] = false;
+        };
+
+        el.addEventListener("touchstart", start, { passive: false });
+        el.addEventListener("touchend", end, { passive: false });
+        el.addEventListener("touchcancel", end, { passive: false });
+    };
+
+    setupInput("leftBtn", "left");
+    setupInput("rightBtn", "right");
+    setupInput("jumpBtn", "jump");
+
+    // Klaviatura kontrolları
+    window.addEventListener("keydown", (e) => {
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "Space"].includes(e.code)) {
+            e.preventDefault();
+        }
+        if (e.code === "ArrowLeft") inputs.left = true;
+        if (e.code === "ArrowRight") inputs.right = true;
+        if (e.code === "Space" || e.code === "ArrowUp") inputs.jump = true;
+    });
+
+    window.addEventListener("keyup", (e) => {
+        if (e.code === "ArrowLeft") inputs.left = false;
+        if (e.code === "ArrowRight") inputs.right = false;
+        if (e.code === "Space" || e.code === "ArrowUp") inputs.jump = false;
+    });
+
+    restartBtn.addEventListener("click", () => {
+        hideMessage();
+        startGame();
+    });
+
+    // İlkin yükləmə
+    resize();
+    if (!levels.length) {
+        levels = buildLevels();
+    }
+    startGame();
     update();
 </script>
 </body>
