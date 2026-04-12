@@ -330,7 +330,6 @@
         PAUSED: "paused",
         LEVEL_COMPLETE: "level_complete",
         GAME_OVER: "game_over",
-        LEVEL_COMPLETE: "level_complete",
         VICTORY: "victory"
     };
 
@@ -378,8 +377,8 @@
         grounded: false,
         prevGrounded: false,
         onPlatform: null,
-        baseColor: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
-        color: SKINS[localStorage.getItem(SKIN_KEY)] || SKINS.red,
+        baseColor: "#FF3D00",
+        color: "#FF3D00",
         squashX: 1,
         squashY: 1,
         onIce: false,
@@ -407,10 +406,6 @@
     let lives = 3;
     let state = GAME_STATE.MENU;
     let activePower = null;
-    let leaderboard = [];
-
-    let particles = [];
-    let floatingTexts = [];
     let screenShake = 0;
     let redFlash = 0;
 
@@ -677,10 +672,6 @@
             highScore = score;
             localStorage.setItem(HIGH_SCORE_KEY, String(highScore));
         }
-        musicOscillators.forEach((osc) => {
-            try { osc.stop(); } catch { /* oscillator artıq dayanmış ola bilər */ }
-        });
-        musicOscillators = [];
     }
 
     function sanitizeLeaderboardScores(rawScores) {
@@ -853,8 +844,6 @@
 
         activePower = null;
         applyPlayerColor();
-
-        activePowerUp = null;
         cameraX = 0;
         updateHud();
     }
@@ -888,7 +877,6 @@
         const oldState = state;
         const oldScore = score;
         const oldLives = lives;
-        const oldState = state;
         const oldIndex = currentLevelIndex;
 
         levels = buildLevels();
@@ -942,8 +930,6 @@
         if (state !== GAME_STATE.PLAYING) return;
         if (activePower && activePower.type === "star") return;
 
-        playHitSound();
-        triggerDamageEffect();
         lives -= 1;
         triggerDamageFx();
         updateHud();
@@ -967,16 +953,12 @@
 
     function pauseGame() {
         if (state !== GAME_STATE.PLAYING) return;
-        state = GAME_STATE.PAUSED;
-        showMessage("Dayandırıldı", "Oyun dayandırıldı", "Davam et", () => {
-            resumeGame();
-        });
+        setState(GAME_STATE.PAUSED);
     }
 
     function resumeGame() {
         if (state !== GAME_STATE.PAUSED) return;
-        state = GAME_STATE.PLAYING;
-        hideMessage();
+        setState(GAME_STATE.PLAYING);
     }
 
     function checkAABBCircle(cx, cy, cr, rect) {
